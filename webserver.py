@@ -96,6 +96,10 @@ def users():
     table_headers, table_data=server.get_status('users')
     return render_template("users.html", title="Пользователи", active='Обзор', inner_menu=inner_menu_users, table_headers=table_headers,
     table_data=table_data)
+@app.route("/users_refresh", methods=["POST"])
+def users_refresh():
+    server.pull_users()
+    return redirect("/users")
 
 inner_menu_tasks = [
         {"name": "Обзор", "url": "/tasks"},

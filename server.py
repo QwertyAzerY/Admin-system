@@ -145,7 +145,7 @@ class server_class():
                         item=right[i]
                         text=''
                         for s in item[1]:
-                            text+=s
+                            text+=s+'\n'
                         temp.append(f'{datetime.fromtimestamp(float(item[0])).strftime("%m-%d %H:%M:%S")} - {text}')
                         ret.append(temp)
                 pass
@@ -157,6 +157,17 @@ class server_class():
         except Exception as E:
             self.slogger.error(f'ERR returning status to web {E}')
             return ([f'ERR returning status to web {E}',''],[f'ERR returning status to web {E}', ''])
+    def pull_users(self):
+        try:
+            slogger.info(f'Pulling Users')
+            for c in self.clients.dict.keys():
+                if c in self.sock_client_binding.values():
+                    slogger.info(f'Pulling Users from {self.clients.dict[c]['alias']}')
+                    self.add_command(c, 'usrs')
+        except Exception as E:
+            slogger.error(f'Error pulling users {E}')
+            return False
+        return True
 
     def add_command(self, peer_pub:bytes, task_type:str, payload=b''):
         if task_type=='exec' and type(payload)==str:
@@ -237,7 +248,7 @@ class server_class():
                 if payload!=b'':
                     payload=str(payload, encoding='UTF-8')
                     if payload.find('ERROR')!=-1:
-                        self.commands.append(peer_pub, command_id, '', payload)
+                        self.commands.append(peer_pub, command_id, '', json.dumps({time.time(): payload}))
                     else:
                         try:
                             usrs=json.loads(payload)
@@ -416,6 +427,7 @@ class server_class():
             handshake_complete=False
             while True:
                 if not handshake_complete:
+                    print(f'Waiting for first handshake message')
                     msg = await loop.sock_recv(sock, self.BUF_SIZE)
                     print(f'First message recv, starting handshake from {addr[0]}:{addr[1]}')
                     returned = await self.handshake(loop, msg, sock)
@@ -456,6 +468,7 @@ class server_class():
 
                 if handshake_complete:
                     msg=await self.read_encrypted(loop, sock, True)
+                    print(f'Server is ticking {time.time()}', flush=True, end='\r')
                     if msg==False:
                         slogger.error(f'Cipher was unable to decrypt')
                         return
@@ -479,16 +492,17 @@ class server_class():
                             self.add_command(current_peer_pub, 'stat')
 
                     
-                         
-                print(f'Server is ticking {time.time()}', flush=True, end='\r')
                 if msg==b'': #типа тут мы подвисаем если данных нет
                     pass
                 if msg==None:
+                    print('msg was None. Breaking')
+                    handshake_complete=False
                     break
                 self.slogger.debug(f"recv {msg}")
 
 
         finally:
+            handshake_complete=False
             self.slogger.info(f'Client disconnected')
             self.remove_sock_bind(sock.getpeername())
             sock.close()
