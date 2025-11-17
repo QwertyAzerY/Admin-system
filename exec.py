@@ -5,7 +5,7 @@ from queue import Empty
 def wrapper(cmd, queue:Queue):
     try:
         proc=subprocess.run(cmd, capture_output=True, text=True, shell=True)
-        queue.put([proc.stdout, f'Process finished with returncode {proc.returncode}'])
+        queue.put([proc.stdout, f'Process finished with returncode {proc.returncode}', proc.stderr])
     except Exception as E:
         queue.put([f'ERROR Executing your command. Raised exception is {E}'])
 

@@ -3,6 +3,10 @@
 {% block inner_content %}
 <h1>{{ title }}</h1>
 
+<form action="/users_refresh" method="post">
+    <button type="submit">Обновить</button>
+</form>
+
 {% if table_data %}
 <div style="max-height:95%; overflow-y:auto; border:1px solid #ccc;">
 <table>
