@@ -1,11 +1,12 @@
 import subprocess
 from multiprocessing import Process, active_children, Queue
 from queue import Empty
+shell=False
 
 def wrapper(cmd, queue:Queue):
     try:
-        proc=subprocess.run(cmd, capture_output=True, text=True, shell=True)
-        queue.put([proc.stdout, f'Process finished with returncode {proc.returncode}'])
+        proc=subprocess.run(cmd, capture_output=True, text=True, shell=shell)
+        queue.put([proc.stdout, f'Process finished with returncode {proc.returncode}', proc.stderr])
     except Exception as E:
         queue.put([f'ERROR Executing your command. Raised exception is {E}'])
 
@@ -17,7 +18,7 @@ class exec():
     
     def run_and_wait(self, id:bytes, command:str):
         cmd=command.split(' ')
-        proc=subprocess.run(cmd, capture_output=True, text=True, shell=True)
+        proc=subprocess.run(cmd, capture_output=True, text=True, shell=shell)
         try:
             return proc.stdout
         except Exception as E:
@@ -59,7 +60,7 @@ class exec():
 if __name__=='__main__':
     import time
     test=exec()
-    test.run(b'1', 'type G:\\Python\\Diplom\\examples\\shadow')
+    test.run(b'1', 'sudo cat /etc/shadow')
     while True:
         print(1);time.sleep(1)
         print(test.check_completed())

@@ -5,6 +5,7 @@ class users():
         self.ready=False
 
     def scrap(self, data:str):
+        atleast_one_user=False
         if len(data)<3:
             return [False, 'Cannot scrap file; len<3']
         lines=data.split('\n')
@@ -13,19 +14,23 @@ class users():
         for line in lines:
             args=line.split(':')
             if len(args)<2:
-                return [False, 'Cannot scrap file; lines==0']
+                continue
             if args[1]=='!' or args[1]=='!!' or args[1]=='*' or args[1]=='!*':
                 continue
             self.users[args[0]]={
                 'password': args[1]
             }
+            atleast_one_user=True
+        if not atleast_one_user:
+            return [False, 'There was no users with able to login']
         return [True, '']
+    
     
     def export_str(self) -> str:
         return dumps(self.users)
 
 
 if __name__=="__main__":
-    test="root:*:19212:0:99999:7:::\ndaemon:*:19212:0:99999:7:::\nbin:*:19212:0:99999:7:::\nsys:*:19212:0:99999:7:::\nsync:*:19212:0:99999:7:::\ngames:*:19212:0:99999:7:::\nman:*:19212:0:99999:7:::\nlp:*:19212:0:99999:7:::\nmail:*:19212:0:99999:7:::\nnews:*:19212:0:99999:7:::\nuucp:*:19212:0:99999:7:::\nproxy:*:19212:0:99999:7:::\nwww-data:*:19212:0:99999:7:::\nbackup:*:19212:0:99999:7:::\nlist:*:19212:0:99999:7:::\nirc:*:19212:0:99999:7:::\ngnats:*:19212:0:99999:7:::\nnobody:*:19212:0:99999:7:::\n_apt:!:19212::::::\nsystemd-network:!:19212::::::\nsystemd-resolve:!:19212::::::\nsystemd-timesync:!:19212::::::\nmessagebus:!:19212::::::\ntss:!:19212::::::\nstrongswan:!:19212::::::\ntcpdump:!:19212::::::\nusbmux:!:19212::::::\nsshd:!:19212::::::\ndnsmasq:!:19212::::::\navahi:!:19212::::::\nrtkit:!:19212::::::\nspeech-dispatcher:!:19212::::::\nnm-openvpn:!:19212::::::\nnm-openconnect:!:19212::::::\nlightdm:!:19212::::::\npulse:!:19212::::::\nsaned:!:19212::::::\ncolord:!:19212::::::\nmysql:!:19212::::::\nstunnel4:!*:19212::::::\n_rpc:!:19212::::::\ngeoclue:!:19212::::::\nDebian-snmp:!:19212::::::\nsslh:!:19212::::::\nntpsec:!:19212::::::\nredsocks:!:19212::::::\nrwhod:!:19212::::::\niodine:!:19212::::::\nmiredo:!:19212::::::\nstatd:!:19212::::::\npostgres:!:19212::::::\ninetsim:!:19212::::::\nking-phisher:!:19212::::::\nkali:$y$j9T$CPuhZ1MKX1L2Vm2uVVdYD0$tpZjsmkPG6ONRswn789aImhMu5c8Ymtmh18Do8BtYY5:19304:0:99999:7:::\n_chrony:!:19451::::::\nsecureuser:$y$j9T$OpUjQ9yVzeAieXzlhT70D/$lMGU9cTgS4WyWcbyMKWDTZ1kLdB/fdg7RhtwyPGQuX7:19527:0:99999:7:::\nredis:!:19635::::::\n_galera:!:19988::::::\nDebian-exim:!:20057::::::\nuser1:$y$j9T$YRgXl4Xro442th7VQan2f/$TCwq9wZsDbts9GOXvcLXbI5x47o4SiKyK8hl1zYjHG6:20057:0:99999:7:::\nuser2:$y$j9T$o9dw/1rnvb11vF8F.BL35.$s8zEujGSPiJyGn43LrE4orJG9b3Hj43H/PeNyuCp7yC:20057:0:99999:7:::"
+    test='root:!::0:99999:7:::\nbin:*:20047:0:99999:7:::\ndaemon:*:20047:0:99999:7:::\nadm:*:20047:0:99999:7:::\nlp:*:20047:0:99999:7:::\nsync:*:20047:0:99999:7:::\nshutdown:*:20047:0:99999:7:::\nhalt:*:20047:0:99999:7:::\nmail:*:20047:0:99999:7:::\noperator:*:20047:0:99999:7:::\ngames:*:20047:0:99999:7:::\nftp:*:20047:0:99999:7:::\nnobody:*:20047:0:99999:7:::\ndbus:!!:20409::::::\nrtkit:!!:20409::::::\ngeoclue:!!:20409::::::\npipewire:!!:20409::::::\ntss:!!:20409::::::\nsystemd-oom:!*:20409::::::\nsystemd-resolve:!*:20409::::::\npolkitd:!!:20409::::::\navahi:!!:20409::::::\nsstpc:!!:20409::::::\nunbound:!!:20409::::::\nopenvswitch:!!:20409::::::\nsshd:!!:20409::::::\nnm-openconnect:!!:20409::::::\ngluster:!!:20409::::::\nrpc:!!:20409:0:99999:7:::\nusbmuxd:!!:20409::::::\nopenvpn:!!:20409::::::\nnm-openvpn:!!:20409::::::\nwsdd:!!:20409::::::\ncolord:!!:20409::::::\npostfix:!!:20409::::::\nabrt:!!:20409::::::\ngdm:!!:20409::::::\nrpcuser:!!:20409::::::\nchrony:!!:20409::::::\ndnsmasq:!!:20409::::::\ntcpdump:!!:20409::::::\ngnome-remote-desktop:!*:20409::::::\nsystemd-coredump:!*:20409::::::\nsystemd-timesync:!*:20409::::::\nvboxadd:!*:20409::::::\nadmin:$y$j9T$j4dNpk0eAHgevjW/qyyJpLVM$acRavqrkVmPquhHUaJ90ornRlvxy.R3PgyoNjtlwcVB::0:99999:7:::\n'
     U=users()
-    U.scrap(test)
+    print(U.scrap(test))
