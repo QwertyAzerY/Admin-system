@@ -28,7 +28,7 @@ class server_class():
         self.USERS=users_cache(self.DB)
         #self.web=web(self.conf.settings['SERVER_IP'], self.conf.settings['SERVER_PORT']-1)
 
-    def get_status(self, category, task_id="") -> list:
+    def get_status(self, category, optional="") -> list:
         try:
             if category=='clients_for_exec':
                 ret=[]
@@ -117,10 +117,10 @@ class server_class():
             elif category=='task':
                 ret=[]
                 h=['Команды сервера', 'Результат выполнения']
-                if task_id=='':
+                if optional=='':
                     ret.append('ОШИБКА в айди задания')
                     return (h, ret)
-                main_key=bytearray.fromhex(task_id)
+                main_key=bytearray.fromhex(optional)
                 peer_pub=bytes(main_key[:-4])
                 task_id=bytes(main_key[-4:])
                 task=self.commands.read(peer_pub, task_id)
@@ -253,7 +253,7 @@ class server_class():
                         try:
                             usrs=json.loads(payload)
                         except Exception as E:
-                            self.commands.append(peer_pub, command_id, '', json.dumps({time.time(): f'USERS DICT decode error {E}'}))
+                            self.commands.append(peer_pub, command_id, '', json.dumps({time.time(): [f'USERS DICT decode error {E}']}))
                             slogger.error(f'USERS DICT decode error {E}')
                             return
                         self.USERS.add_host_users(peer_pub, usrs)
@@ -266,7 +266,7 @@ class server_class():
                     stats_dict=json.loads(stats)
                 except Exception as E:
                     slogger.error(f'ERR loads json {E}')
-                    self.commands.append(peer_pub, command_id, '', json.dumps({time.time():f'ERR decoding string {E}'}))
+                    self.commands.append(peer_pub, command_id, '', [json.dumps({time.time():f'ERR decoding string {E}'})])
                     return False
                 self.commands.append(peer_pub, command_id, '', stats)
                 try:

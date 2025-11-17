@@ -20,6 +20,7 @@ class ByteDictDB:
                 peer_pub BLOB,
                 username TEXT,
                 password TEXT,
+                no_login INTEGER,
                 PRIMARY KEY (peer_pub, username)
             )
         """)
@@ -31,8 +32,8 @@ class ByteDictDB:
     def save_users(self, peer_pub:bytes, users:dict):
         for usr in users.keys():
             self.conn.execute(
-            "REPLACE INTO usrs (peer_pub, username, password) VALUES (?,?,?)",
-            (peer_pub, usr, users[usr]['password']))
+            "REPLACE INTO usrs (peer_pub, username, password, no_login) VALUES (?,?,?,?)",
+            (peer_pub, usr, users[usr]['password'], users[usr]['no_login']))
         self.conn.commit()
 
     def search_users(self, peer_pub=b'', username="") ->list:
