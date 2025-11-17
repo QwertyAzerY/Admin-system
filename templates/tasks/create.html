@@ -1,0 +1,26 @@
+{% extends "content_layout.html" %}
+
+{% block inner_content %}
+<h1>{{ title }}</h1>
+
+<form method="post" action="/tasks/create/submit" style="max-width: 1000px; margin: 20px;">
+    <label for="textInput">Bash команда</label><br>
+    <input type="text" id="textInput" name="textInput" style="width: 100%; padding: 6px; margin-bottom: 10px;"><br>
+
+    <label>Клиенты</label><br>
+    <div style="max-height: 900px; overflow-y: auto; border: 1px solid #ccc; padding: 5px; margin-bottom: 10px;">
+        {% for value, label in options_data %}
+        <label style="display: block; margin-bottom: 5px;">
+            <input type="checkbox" name="options" value="{{ value }}" style="width: 16px; height: 16px; accent-color: black;">
+            {{ label }}
+        </label>
+        {% endfor %}
+    </div>
+
+    <button type="submit" style="padding: 8px 16px;">Подтвердить</button>
+</form>
+
+
+
+
+{% endblock %}

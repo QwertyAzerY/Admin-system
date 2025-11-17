@@ -1,0 +1,31 @@
+{% extends "content_layout.html" %}
+
+
+{% block inner_content %}
+<h1>Задания</h1>
+
+
+{% if table_data %}
+<div style="max-height:95%; overflow-y:auto; border:1px solid #ccc;">
+<table border="1" cellspacing="0" cellpadding="5", style="width:100%; border-collapse:collapse;">
+    <tbody>
+        {% for row in table_data %}
+        <tr>
+            {% for cell in row %}
+                {% if loop.first %}
+                    <td><a href="/task/{{ cell }}">Подробнее</a></td>
+                {% else %}
+                    <td>{{ cell }}</td>
+                {% endif %}
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<p>Нет данных для отображения.</p>
+{% endif %}
+
+
+{% endblock %}

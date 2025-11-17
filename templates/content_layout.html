@@ -1,0 +1,64 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="inner-wrapper">
+    <div class="inner-menu">
+        {% block inner_menu %}
+        {% if inner_menu %}
+            {% for item in inner_menu %}
+                <a href="{{ item.url }}" class="{% if request.path == item.url %}active{% endif %}">
+                    {{ item.name }}
+                </a>
+            {% endfor %}
+        {% else %}
+            <p style="color:#777;">Нет пунктов меню</p>
+        {% endif %}
+        {% endblock %}
+    </div>
+
+    <div class="inner-content">
+        {% block inner_content %}{% endblock %}
+    </div>
+</div>
+
+<style>
+.inner-wrapper {
+    display: flex;
+    height: 100%;
+}
+
+.inner-menu {
+    width: 180px;
+    background-color: #e9e9e9;
+    padding: 15px;
+    border-right: 1px solid #ccc;
+    display: flex;
+    flex-direction: column;
+}
+
+.inner-menu a {
+    text-decoration: none;
+    color: #333;
+    padding: 6px 10px;
+    margin: 3px 0;
+    border-radius: 4px;
+    transition: background 0.2s;
+    font-size: 0.9em;
+}
+
+.inner-menu a:hover {
+    background-color: #d0d0d0;
+}
+
+.inner-menu a.active {
+    background-color: #bbb;
+    font-weight: bold;
+}
+
+.inner-content {
+    flex: 1;
+    padding: 20px;
+    background-color: #fff;
+}
+</style>
+{% endblock %}

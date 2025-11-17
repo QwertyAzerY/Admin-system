@@ -1,0 +1,74 @@
+{% extends "content_layout.html" %}
+
+{% block inner_content %}
+<h1>{{ title }}</h1>
+
+<div class="log-container">
+    <div class="slider-control">
+        <input type="range"
+               id="logSlider"
+               min="0"
+               max="{{ (total_lines // chunk_size) | int }}"
+               step="1"
+               value="{{ (total_lines // chunk_size) | int }}">
+        <span id="sliderValue">{{ (total_lines // chunk_size) | int }}</span>
+        Страница
+    </div>
+
+    <textarea id="logBox" readonly></textarea>
+</div>
+
+<script>
+const slider = document.getElementById("logSlider");
+const output = document.getElementById("sliderValue");
+const logBox = document.getElementById("logBox");
+const my_textarea = document.getElementById("logBox");
+
+async function loadLogs(chunk) {
+    const response = await fetch(`/status/logs/data?chunk=${chunk}`);
+    const data = await response.json();
+    logBox.value = data.lines.join("\n") || "Нет данных";
+    output.textContent = chunk;
+    my_textarea.scrollTop = my_textarea.scrollHeight;
+}
+
+// При изменении положения слайдера
+slider.addEventListener("input", () => {
+    loadLogs(slider.value);
+});
+
+// При загрузке страницы сразу показываем последние строки
+window.addEventListener("DOMContentLoaded", () => {
+    const lastChunk = Math.max(parseInt(slider.max)-1, 0);
+    slider.value = lastChunk;
+    loadLogs(lastChunk);
+});
+</script>
+
+<style>
+.log-container {
+    display: flex;
+    flex-direction: column;
+    height: 95%;
+    gap: 10px;
+}
+
+.slider-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#logBox {
+    width: 100%;
+    height: 95%;
+    font-family: monospace;
+    font-size: 13px;
+    background-color: #f9f9f9;
+    border: 1px solid #ccc;
+    padding: 10px;
+    overflow-y: auto;
+}
+</style>
+
+{% endblock %}

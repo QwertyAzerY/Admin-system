@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: sans-serif;
+            display: flex;
+            height: 100vh;
+            background-color: #f5f5f5;
+        }
+
+        .sidebar {
+            width: 220px;
+            background-color: #222;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .sidebar h2 {
+            margin: 0 0 20px;
+            text-align: center;
+            font-size: 1.2em;
+        }
+
+        .sidebar a {
+            color: white;
+            text-decoration: none;
+            padding: 10px 15px;
+            margin: 5px 0;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .sidebar a:hover {
+            background-color: #444;
+        }
+
+        .content {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        .content h1 {
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    {% include 'menu.html' %}
+    <div class="content">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

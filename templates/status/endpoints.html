@@ -1,0 +1,51 @@
+{% extends "content_layout.html" %}
+
+{% block inner_content %}
+<h1>{{ title }}</h1>
+
+{% if table_data %}
+<table>
+    <thead>
+        <tr>
+            {% for header in table_headers %}
+                <th>{{ header }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in table_data %}
+            <tr>
+                {% for rb in row %}
+                <td>{{ rb }}</td>
+                {% endfor %}
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>Нет данных для отображения.</p>
+{% endif %}
+
+<style>
+table {
+    border-collapse: collapse;
+    width: 100%;
+    background-color: #fff;
+}
+
+th, td {
+    border: 1px solid #ccc;
+    padding: 8px 10px;
+    text-align: left;
+}
+
+th {
+    background-color: #f0f0f0;
+}
+
+tr:nth-child(even) {
+    background-color: #fafafa;
+}
+</style>
+
+{% endblock %}
