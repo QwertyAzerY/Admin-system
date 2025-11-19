@@ -4,33 +4,64 @@
 <h1>{{ title }}</h1>
 
 <form action="/users_refresh" method="post">
-    <button type="submit">Обновить</button>
+    <button type="submit">Запросить юзеров с клиентов</button>
 </form>
 
-{% if table_data %}
+<button type="submit", id="RefreshUsersButton">Обновить таблицу</button>
+
+<label id="hide_no_login_lbl">
+    <input type="checkbox"
+            id="hide_no_login"
+           class="square-checkbox">
+    <span>Скрыть no-login пользователей</span>
+</label>
+
+
 <div style="max-height:95%; overflow-y:auto; border:1px solid #ccc;">
-<table>
-    <thead>
-        <tr>
-            {% for header in table_headers %}
-                <th>{{ header }}</th>
-            {% endfor %}
-        </tr>
-    </thead>
-    <tbody>
-        {% for row in table_data %}
-            <tr>
-                {% for rb in row %}
-                <td style="white-space: pre-wrap;">{{ rb }}</td>
-                {% endfor %}
-            </tr>
-        {% endfor %}
-    </tbody>
+<table id="table_data">
+    
 </table>
 </div>
-{% else %}
-<p>Нет данных для отображения.</p>
-{% endif %}
+
+
+<script>
+const cb_hide_no_login = document.getElementById("hide_no_login"); 
+const refr_users_btn = document.getElementById("RefreshUsersButton");
+
+async function loadTable() {
+    const hide_no_login = cb_hide_no_login.checked ? "1" : "0";
+
+    const resp = await fetch(`/users/get?filter=${hide_no_login}`);
+    const data = await resp.json(); // data = [ [..row..], [..row..] ]
+
+    const tbody = document.getElementById("table_data");
+    tbody.innerHTML = "";
+
+    data.forEach(row => {
+        const tr = document.createElement("tr");
+        row.forEach(cell => {
+            const td = document.createElement("td");
+            td.textContent = cell;
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    });
+}
+
+
+refr_users_btn.addEventListener("click", () => {
+    loadTable();
+});
+// При загрузке страницы сразу показываем последние строки
+window.addEventListener("DOMContentLoaded", () => {
+    loadTable();
+});
+
+cb_hide_no_login.addEventListener("click", () => {
+    cb_hide_no_login.classList.toggle("checked", cb_hide_no_login.checked);
+    loadTable();
+});
+</script>
 
 <style>
 table {
@@ -51,6 +82,18 @@ th {
 
 tr:nth-child(even) {
     background-color: #fafafa;
+}
+.square-checkbox {
+    width:16px;
+    height:16px;
+    appearance:Auto;
+    border:2px solid #000;
+    border-radius:3px;
+    cursor:pointer;
+}
+.square-checkbox.checked {
+    background:#000;
+    appearance:Auto;
 }
 </style>
 

@@ -38,7 +38,13 @@ class ByteDictDB:
 
     def search_users(self, peer_pub=b'', username="") ->list:
         """ specify atleast 1 of peer_pub or username """
-        if peer_pub!=b'':
+        if peer_pub!=b'' and username!="":
+            cur=self.read_only.execute('SELECT peer_pub, username, password FROM usrs WHERE peer_pub, username = ?, ?', (peer_pub, username))
+            rows = cur.fetchall()
+            if not rows:
+                return []
+            return rows
+        elif peer_pub!=b'':
             cur=self.read_only.execute('SELECT peer_pub, username, password FROM usrs WHERE peer_pub = ?', (peer_pub,))
             rows = cur.fetchall()
             if not rows:
@@ -51,9 +57,25 @@ class ByteDictDB:
                 return []
             return rows
         
-    def read_many_users(self) ->list:
-        cur=self.read_only.execute('SELECT peer_pub, username, password FROM usrs')
-        rows= cur.fetchall()
+    def read_many_users(self, filter) ->list:
+        iswhere=''
+        if filter!='':
+            flag=False
+            values=[]
+            if filter[0]=='1':
+                iswhere+='no_login = ?'
+                flag=True
+                values.append(0)
+            elif filter[0]=='0':
+                iswhere+='no_login = ?'
+                flag=True
+                values.append(1)
+            if flag:
+                cur = self.read_only.execute(f'SELECT peer_pub, username, password FROM usrs WHERE {iswhere}', values)
+                rows = cur.fetchall()
+        else:
+            cur = self.read_only.execute('SELECT peer_pub, username, password FROM usrs')
+            rows = cur.fetchall()
         if not rows:
             return []
         return rows
@@ -178,8 +200,8 @@ class users_cache:
     def read_saved_users(self, peer_pub:bytes, username:str):
         return self.DB.search_users(peer_pub, username)
     
-    def read_all(self):
-        return self.DB.read_many_users()
+    def read_all(self, filter):
+        return self.DB.read_many_users(filter)
 
 if __name__=='__main__':
     from os import urandom

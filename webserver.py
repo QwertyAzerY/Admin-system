@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect
+from flask import Flask, render_template, request, jsonify, redirect, Response
 import threading
 from server import server_class
 import os
@@ -93,13 +93,45 @@ inner_menu_users = [
     ]
 @app.route('/users')
 def users():
-    table_headers, table_data=server.get_status('users')
-    return render_template("users.html", title="Пользователи", active='Обзор', inner_menu=inner_menu_users, table_headers=table_headers,
-    table_data=table_data)
+    #данные в таблицу запрашивает js
+    return render_template("users.html", title="Пользователи", active='Обзор', inner_menu=inner_menu_users)
+
 @app.route("/users_refresh", methods=["POST"])
 def users_refresh():
     server.pull_users()
     return redirect("/users")
+
+@app.route('/users/get')
+def get_users_filtered():
+    filter = str(request.args.get("filter", ''))
+    headers,lines=server.get_status('users', filter)
+    table=[]
+    table.append(headers)
+    for row in lines:
+        table.append(row)
+    return jsonify(table)
+
+@app.route('/users/create')
+def users_create():
+    _, clients=server.get_status('clients_for_exec')
+    labels, values=[], []
+    for i in range(len(clients)):
+        temp=f'{clients[i][0]} {clients[i][2]}'
+        labels.append(temp)
+        values.append(clients[i][1])
+    check_boxes=zip(values, labels)
+    return render_template("/users/create.html", title="Создать пользователя", active='Создать пользователя', inner_menu=inner_menu_users, options_data=check_boxes)
+
+@app.route('/users/create/submit', methods=["POST"])
+def users_create_submit():
+    username=request.form.get('username')
+    password=request.form.get('pass1')
+    hosts=request.form.getlist('options')
+    try:
+        server.create_user_task(username, password, hosts)
+    except Exception as E:
+        return Response("Ошибка при создании пользователя: {E}", mimetype="text/plain")
+    return redirect('/tasks')
 
 inner_menu_tasks = [
         {"name": "Обзор", "url": "/tasks"},
@@ -120,7 +152,7 @@ def task_info(task_id:str):
 @app.route('/tasks/create')
 def tasks_create():
     _, clients=server.get_status('clients_for_exec')
-    labels, values=[], []
+    labels, values=[], [],
     for i in range(len(clients)):
         temp=f'{clients[i][0]} {clients[i][2]}'
         labels.append(temp)
@@ -157,5 +189,5 @@ def run_thread():
 if __name__ == "__main__":
     server_thread = threading.Thread(target=run_thread, daemon=True)
     server_thread.start()
-    server.create_client(filename='./clients/testing_client.json')
+    server.create_client(filename='./clients/testing_client2.json')
     server.listen_for_connections()

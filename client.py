@@ -133,8 +133,8 @@ class client_class():
     async def send_encrypted(self, data):
         try:
             encrypted=bytearray(self.Cipher.encrypt(data))
-            enc_len=len(encrypted)+5
-            message=bytearray(enc_len.to_bytes(length=5, signed=False))+encrypted
+            enc_len=len(encrypted)+10
+            message=bytearray(enc_len.to_bytes(length=5, signed=False))+encrypted+bytearray(enc_len.to_bytes(length=5, signed=False))
             self.writer.write(message)
             await self.writer.drain()
         except Exception as e:
@@ -153,8 +153,8 @@ class client_class():
                 data_first_packet=await self.reader.read(5)
             if data_first_packet==None or len(data_first_packet)<5:
                 return data_first_packet
-            data_len=bytearray(data_first_packet)[:5]
-            data_len=int.from_bytes(data_len, signed=False)
+            data_len_array=bytearray(data_first_packet)[:5]
+            data_len=int.from_bytes(data_len_array, signed=False)
             data+=bytearray(data_first_packet)[5:]
             if data_len>len(data_first_packet):
                 data_len-=len(data_first_packet)
@@ -163,6 +163,10 @@ class client_class():
                     data+=bytearray(data_packet)
                     data_len-=len(data_packet)
             actual_len=len(data)
+            secondary_len_block=data[-5:]
+            data=data[:-5]
+            if secondary_len_block!=data_len_array:
+                raise Exception('Len in end of message not equal to len in beggining')
             plaintext=self.Cipher.decrypt(bytes(data))
             return plaintext
         except Exception as e:
@@ -271,5 +275,5 @@ class client_class():
             
         
 if __name__=="__main__":
-    client=client_class('./clients/testing_client.json', test_mode=True)
+    client=client_class('./clients/testing_client2.json', test_mode=True)
     asyncio.run(client.client_loop())

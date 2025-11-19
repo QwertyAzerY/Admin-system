@@ -1,0 +1,56 @@
+{% extends "content_layout.html" %}
+
+{% block inner_content %}
+<h1>{{ title }}</h1>
+
+<form action="/users/create/submit" method="post" style="max-width:600px; margin:20px;">
+    <label for="username">Имя пользователя</label><br>
+    <input type="text" id="username" name="username" style="width:100%; padding:6px; margin-bottom:10px;"><br>
+
+    <label for="pass1">Пароль</label><br>
+    <input type="password" id="pass1" name="pass1" style="width:100%; padding:6px; margin-bottom:10px;"><br>
+
+    <label for="pass2">Повтор пароля</label><br>
+    <input type="password" id="pass2" name="pass2" style="width:100%; padding:6px; margin-bottom:10px;">
+    <label id="pass_warn" style="color: red;"></label><br>
+    
+
+    <label>Клиенты</label><br>
+    <div style="max-height: 900px; overflow-y: auto; border: 1px solid #ccc; padding: 5px; margin-bottom: 10px;">
+        {% for value, label in options_data %}
+        <label style="display: block; margin-bottom: 5px;">
+            <input type="checkbox" name="options{{i}}" value="{{ value }}" style="width: 16px; height: 16px; accent-color: black;">
+            {{ label }}
+        </label>
+        {% endfor %}
+    </div>
+
+    <button type="submit" id="submit_create" style="padding:8px 16px;">Создать</button>
+</form>
+
+<script>
+const pass1 = document.getElementById("pass1");
+const pass2 = document.getElementById("pass2");
+const btn = document.getElementById("submit_create");
+const pass_warn = document.getElementById('pass_warn')
+
+
+function checkEqual() {
+    const ok = pass1.value === pass2.value;
+    btn.disabled = !ok;
+    if (pass1.value === pass2.value) {
+        pass2.style.borderColor = "green";
+        pass_warn.innerHTML=''
+    } else {
+        pass2.style.borderColor = "red";
+        pass_warn.innerHTML='Пароли не совпадают'
+    }
+}
+
+pass2.addEventListener("input", checkEqual);
+
+
+
+</script>
+
+{% endblock %}

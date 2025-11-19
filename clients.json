@@ -1,8 +1,14 @@
 {
     "52b3e9e1f04c83b7aba6816601db93c06242c1c77befc399d4b1a9523e5fe8279863e3d376e5d056905a4e2ab6e6d3c051d8e013a9d576d5a73f1f2d0fddf6ab": {
-        "timestamp": 1763403158.8352733,
+        "timestamp": 1763490113.8870065,
         "alias": "Client-ab at 07-11-25 13-10",
         "SERVER_IP": "192.168.88.254",
+        "SERVER_PORT": 51235
+    },
+    "e3c51cd4934ac9a32762b6c3a36cd5068dfc3a947a8a6550b0f05f6e413d1d3459e0f5d59ad9ca899a1e2e6d66d215b4eb097948dbd8347af7573a4bfcd35f0e": {
+        "timestamp": 1763577574.189444,
+        "alias": "Client-e at 18-11-25 16-53",
+        "SERVER_IP": "127.0.0.1",
         "SERVER_PORT": 51235
     }
 }

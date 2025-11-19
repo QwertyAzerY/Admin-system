@@ -7,6 +7,7 @@ from my_config import s_Config, c_Config, clients
 from os import urandom
 from random import randint
 from database import ByteDictDB, commands, users_cache
+from users import hash_password
 import my_crypto
 import time
 import json
@@ -28,6 +29,21 @@ class server_class():
         self.USERS=users_cache(self.DB)
         #self.web=web(self.conf.settings['SERVER_IP'], self.conf.settings['SERVER_PORT']-1)
 
+    def create_user_task(self, username, password, hosts):
+        user_add_command=f"sudo useradd -N -m -p '{1}' {0}"
+        cmd_ids=[]
+        for host in hosts:
+            host=bytes.fromhex(host)
+            flag, result=hash_password(password)
+            if not flag:
+                raise Exception(result)
+            password=result
+            find=self.USERS.read_saved_users(host, username)
+            if find==[]:
+                cmd=user_add_command.format(password)
+                cmd_ids.append(self.add_command(host, 'exec', ))
+        return True, ''
+
     def get_status(self, category, optional="") -> list:
         try:
             if category=='clients_for_exec':
@@ -45,9 +61,13 @@ class server_class():
                         temp.append('Not connected')
                     ret.append(temp)
             elif category=='users':#returns a tuple (headers, table)
+                if len(optional)>1:
+                    return (['ERR Invalid filter argument len'], [])
+                elif optional[0]!='1' and optional[0]!='0':
+                    return (['ERR Invalid filter argument'], [])
                 ret=[]
                 h=['User', 'PC Name']
-                users=self.USERS.read_all()
+                users=self.USERS.read_all(optional)
                 for user in users:
                     temp=[]
                     temp.append(user[1])
@@ -201,16 +221,16 @@ class server_class():
 
     def create_client(self, alias="", filename=""):
         temp_conf=c_Config(alias=alias, filename=filename, peer_key=self.s_key.export_public(), s_conf=self.conf)
-        # self.clients.dict[temp_conf.key.export_public()]={
-        #     'timestamp': time.time(),
-        #     'alias': temp_conf.settings['alias'],
-        #     'SERVER_IP':temp_conf.settings['SERVER_IP'],
-        #     'SERVER_PORT':temp_conf.settings['SERVER_PORT']
-        # }
-        self.clients.dict[temp_conf.key.export_public()]['timestamp']=time.time()
-        self.clients.dict[temp_conf.key.export_public()]['alias']=temp_conf.settings['alias']
-        self.clients.dict[temp_conf.key.export_public()]['SERVER_IP']=temp_conf.settings['SERVER_IP']
-        self.clients.dict[temp_conf.key.export_public()]['SERVER_PORT']=temp_conf.settings['SERVER_PORT']
+        self.clients.dict[temp_conf.key.export_public()]={
+            'timestamp': time.time(),
+            'alias': temp_conf.settings['alias'],
+            'SERVER_IP':temp_conf.settings['SERVER_IP'],
+            'SERVER_PORT':temp_conf.settings['SERVER_PORT']
+        }
+        # self.clients.dict[temp_conf.key.export_public()]['timestamp']=time.time()
+        # self.clients.dict[temp_conf.key.export_public()]['alias']=temp_conf.settings['alias']
+        # self.clients.dict[temp_conf.key.export_public()]['SERVER_IP']=temp_conf.settings['SERVER_IP']
+        # self.clients.dict[temp_conf.key.export_public()]['SERVER_PORT']=temp_conf.settings['SERVER_PORT']
         self.clients.save()
         return temp_conf
 
@@ -373,11 +393,12 @@ class server_class():
             return False
         Cipher=self.clients.dict[peer_pub]['temp_cipher']
         ciphertext=Cipher.encrypt(data)
-        len_of_data=len(ciphertext)+5 #здесь при вызове функции обновляются переменные для CBC даже в словаре self.clients.dict
-        data=bytearray(len_of_data.to_bytes(length=5, signed=False))+bytearray(ciphertext)
+        len_of_data=len(ciphertext)+10 #здесь при вызове функции обновляются переменные для CBC даже в словаре self.clients.dict
+        data=bytearray(len_of_data.to_bytes(length=5, signed=False))+bytearray(ciphertext)+bytearray(len_of_data.to_bytes(length=5, signed=False))
         slogger.debug(f'Sended data with len {len_of_data}')
         try:
             await loop.sock_sendall(sock, data)
+
         except Exception as e:
             self.slogger.error(f'ERR {e} sending encrypted data to client')
             return False
@@ -403,8 +424,8 @@ class server_class():
                 data_first_packet = await loop.sock_recv(sock, 5)
             if data_first_packet==None or data_first_packet==b'':
                 return data_first_packet
-            data_len=bytearray(data_first_packet)[:5]
-            data_len=int.from_bytes(data_len, signed=False)
+            data_len_bytearray=bytearray(data_first_packet)[:5]
+            data_len=int.from_bytes(data_len_bytearray, signed=False)
             data+=bytearray(data_first_packet)[5:]
             if data_len>len(data_first_packet):
                 data_len-=len(data_first_packet)
@@ -412,6 +433,10 @@ class server_class():
                     data_packet= await loop.sock_recv(sock, min(data_len, 1024))
                     data+=bytearray(data_packet)
                     data_len-=len(data_packet)
+            sec_len_block=data[-5:]
+            data=data[:-5]
+            if sec_len_block!=data_len_bytearray:
+                raise Exception('Len in end of message not equal to len in beggining')
             try:
                 plaintext=Cipher.decrypt(bytes(data))
             except Exception as E:
@@ -484,6 +509,8 @@ class server_class():
                         id=await self._create_command(loop, sock, task['type'], task['payload'])
                         slogger.info(f'Sending task {id} {task} to client')
                         self.clients.dict[current_peer_pub]['temp_tasks'].pop(0)
+                    if 'temp_stats' not in list(self.clients.dict[current_peer_pub].keys()):
+                        self.clients.dict[current_peer_pub]['temp_stats']=True
                     if self.clients.dict[current_peer_pub]['temp_stats']:
                         current_time=time.time()
                         if current_time - recent_stats_requested>30.0:
