@@ -13,6 +13,7 @@ class users():
         lines=data.split('\n')
         if len(lines)==0:
             return [False, 'Cannot scrap file; lines==0']
+        self.users={}
         for line in lines:
             no_login=0
             args=line.split(':')
