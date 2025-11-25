@@ -3,6 +3,8 @@
 {% block inner_content %}
 <h1>{{ title }}</h1>
 
+<!-- <label for="username">Фильтр по имени</label><br>
+<input type="text" id="username" name="username" style="width:100%; padding:6px; margin-bottom:10px;"><br> -->
 <form action="/users_refresh" method="post">
     <button type="submit">Запросить юзеров с клиентов</button>
 </form>
@@ -17,12 +19,15 @@
 </label>
 
 
-<div style="max-height:90%; overflow-y:auto; border:1px solid #ccc;">
+
+<form style="height: 90%;" action="/users/remove/submit" method="post">
+<div style="max-height:85%; overflow-y:auto; border:1px solid #ccc;">
 <table id="table_data">
     
 </table>
 </div>
-
+<button type="submit">Удалить</button>
+</form>
 
 <script>
 const cb_hide_no_login = document.getElementById("hide_no_login"); 
@@ -31,7 +36,7 @@ const refr_users_btn = document.getElementById("RefreshUsersButton");
 async function loadTable() {
     const hide_no_login = cb_hide_no_login.checked ? "1" : "0";
 
-    const resp = await fetch(`/users/get?filter=${hide_no_login}`);
+    const resp = await fetch(`/users/get?arg=delete&filter=${hide_no_login}`);
     const data = await resp.json(); // data = [ [..row..], [..row..] ]
 
     const tbody = document.getElementById("table_data");
@@ -39,29 +44,33 @@ async function loadTable() {
 
     data.forEach(row => {
         const tr = document.createElement("tr");
-        const td = document.createElement("td");
-        row.forEach(cell => {
+        const tdCheck = document.createElement("td");
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.value = `${row[0]}-${row[1]}`;
+        cb.textContent = row[1];
+        cb.name="options"
+        tdCheck.appendChild(cb);
+        tr.appendChild(tdCheck);
+
+        for (let i = 1; i < row.length; i++) {
             const td = document.createElement("td");
-            td.textContent = cell;
+            td.textContent = row[i];
             tr.appendChild(td);
-        });
+        }
         tbody.appendChild(tr);
     });
 }
 
 
-refr_users_btn.addEventListener("click", () => {
-    loadTable();
-});
-
 window.addEventListener("DOMContentLoaded", () => {
     loadTable();
 });
-
 cb_hide_no_login.addEventListener("click", () => {
     cb_hide_no_login.classList.toggle("checked", cb_hide_no_login.checked);
     loadTable();
 });
+
 </script>
 
 <style>
@@ -81,21 +90,6 @@ th {
     background-color: #f0f0f0;
 }
 
-tr:nth-child(even) {
-    background-color: #fafafa;
-}
-.square-checkbox {
-    width:16px;
-    height:16px;
-    appearance:Auto;
-    border:2px solid #000;
-    border-radius:3px;
-    cursor:pointer;
-}
-.square-checkbox.checked {
-    background:#000;
-    appearance:Auto;
-}
 </style>
 
 {% endblock %}

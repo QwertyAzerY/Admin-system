@@ -7,7 +7,7 @@ from my_config import s_Config, c_Config, clients
 from os import urandom
 from random import randint
 from database import ByteDictDB, commands, users_cache
-from users import hash_password
+from my_yescrypt import hash_password
 import my_crypto
 import time
 import json
@@ -30,19 +30,41 @@ class server_class():
         #self.web=web(self.conf.settings['SERVER_IP'], self.conf.settings['SERVER_PORT']-1)
 
     def create_user_task(self, username, password, hosts):
-        user_add_command=f"sudo useradd -N -m -p '{1}' {0}"
+        user_add_command="sudo useradd -N -m -p '{1}' {0}"
         cmd_ids=[]
+        duplicates=[]
         for host in hosts:
             host=bytes.fromhex(host)
-            flag, result=hash_password(password)
+            flag, result=hash_password(password, urandom(16))
             if not flag:
                 raise Exception(result)
             password=result
             find=self.USERS.read_saved_users(host, username)
             if find==[]:
-                cmd=user_add_command.format(password)
-                cmd_ids.append(self.add_command(host, 'exec', ))
+                cmd=user_add_command.format(username, password)
+                cmd_ids.append(self.add_command(host, 'exec', cmd.encode()))
+            else:
+                duplicates.append(f'ERR, user {username} already exist at host {self.clients.dict[host]['alias']}')
+        if len(duplicates)>0:
+            rtr_str=''
+            for d in duplicates:
+                rtr_str+=d+'\n'
+            return False,  rtr_str
         return True, ''
+
+    def remove_user_task(self, options:list[str]):
+        user_rem_command="sudo userdel -r {0}"
+        for opt in options:
+            br=opt.find('-')
+            if br==-1:
+                raise Exception('ERROR: invalid checkbox value')
+            host=opt[:br]
+            username=opt[br+1:]
+            cmd=user_rem_command.format(username)
+            self.add_command(bytes.fromhex(host), 'exec', cmd.encode())
+            print()
+        return True, ''
+
 
     def get_status(self, category, optional="") -> list:
         try:
@@ -61,13 +83,14 @@ class server_class():
                         temp.append('Not connected')
                     ret.append(temp)
             elif category=='users':#returns a tuple (headers, table)
+                ret=[]
+                h=['User', 'PC Name']
                 if len(optional)>1:
                     return (['ERR Invalid filter argument len'], [])
                 elif optional[0]!='1' and optional[0]!='0':
                     return (['ERR Invalid filter argument'], [])
-                ret=[]
-                h=['User', 'PC Name']
-                users=self.USERS.read_all(optional)
+                else:
+                    users=self.USERS.read_all(optional)
                 for user in users:
                     temp=[]
                     temp.append(user[1])
@@ -233,6 +256,16 @@ class server_class():
         # self.clients.dict[temp_conf.key.export_public()]['SERVER_PORT']=temp_conf.settings['SERVER_PORT']
         self.clients.save()
         return temp_conf
+    
+    def remove_client(self, peer_pub):
+        if type(peer_pub)==str:
+            peer_pub=bytes.fromhex(peer_pub)
+        self.clients.dict.pop(peer_pub)
+        for addr in self.sock_client_binding.keys():
+            if self.sock_client_binding[addr]==peer_pub:
+                self.remove_sock_bind(addr)
+                break
+        self.clients.save()
 
     async def _create_command(self, loop : asyncio.AbstractEventLoop,  sock : socket.socket, command_type:str, payload=b''):
         peer_pub=self.check_sock_pub(sock.getpeername())
@@ -313,56 +346,47 @@ class server_class():
     
     async def handshake(self, loop: asyncio.AbstractEventLoop, msg:bytes, sock : socket.socket):
         """ returns a [bool, Cipher, peer_pub] """
-        first_lengh=81
-        if len(msg)<1:
-            self.slogger.error(f'Handshake message 0 lenght')
+        if len(msg)<6:
+            self.slogger.error(f'Handshake message <6 lenght')
             return [False, None]
-        if msg[0]!=0x0: #type of handshake message invalid
-            self.slogger.error(f"Type of hadshake message is {msg[0]} and should be {0x0}")
+        if msg[5]!=0x0: #type of handshake message invalid
+            self.slogger.error(f"Type of hadshake message is {msg[5]} and should be {0x0}")
             return [False, None]
-        if len(msg)!=first_lengh:
-            self.slogger.error(f"Len of handshake message is invalid: {len(msg)} but no a {first_lengh}")
-        peer_pub=msg[1:65]
+        len_to_read=int.from_bytes(msg[:5])
+        msg=await loop.sock_recv(sock, len_to_read-6)
+        peer_pub=msg[:64]
+        peer_p_r=msg[64:]
         if peer_pub not in self.clients.dict:
             self.slogger.error(f'Client tried to connect but he is not in server clients {peer_pub}')
             return [False, None]
-        peer_random=msg[65:81]
-        a,b =len(peer_pub), len(peer_random)
-        message_bytes=[]
-        message_bytes.append(0x0)
-        message_bytes+=my_crypto.bytes_ints(self.s_key.export_public())
-        message=bytes(message_bytes)
         try:
-            await loop.sock_sendall(sock, message)
-        except Exception as e:
-            self.slogger.error(f'ERROR {e} in handshake when sending pubkey')
+            shared=my_crypto.mult_P_k(peer_p_r, self.s_key.s_key)
+        except Exception as E:
+            slogger.error(f'ERR genering shared key {E}')
             return [False, None]
-        try:
-            random_data = await loop.sock_recv(sock, 1024)
-        except Exception as e:
-            self.slogger.error(f'ERROR {e} in handshake when recieving random data')
-            return [False, None]
-        shared=my_crypto.generate_shared_key(peer_pub, self.s_key.export_secret(), peer_random)
         Cipher=my_crypto.BlockCipherAdapter(shared[0:32], shared[33:49])
-        r=Cipher.decrypt(random_data)
-        r_l=list(r)
-        r_l.reverse()
-        self.slogger.debug(f'reversed data is {r_l}')
-        r_enc=Cipher.encrypt(bytes(r_l))
+        random_data=urandom(31)
+        r_enc=Cipher.encrypt(random_data)
         try:
             await loop.sock_sendall(sock, r_enc)
         except Exception as e:
-            self.slogger.error(f'ERROR {e} in handshake when sending reversed random data')
+            self.slogger.error(f'ERROR {e} in handshake when sending random data')
             return [False, None]
-
         try:
-            confirm = await loop.sock_recv(sock, 1024)
-            confirm=Cipher.decrypt(confirm)
-            if confirm != b'0':
-                raise Exception(f'Not a valid confirm {confirm}')
+            reversed = await loop.sock_recv(sock, 1024)
+            rev=Cipher.decrypt(reversed)
+            random_data=list(random_data)
+            random_data.reverse()
+            if list(rev)!=random_data:
+                raise Exception(f'not equal. lens are {len(rev), len(random_data)}')
+        except Exception as E:
+            slogger.error(f'ERR check reversed data {E}')
+            return [False, None]
+        try:
+            await loop.sock_sendall(sock, Cipher.encrypt(b'0'))
             return [True, Cipher, peer_pub]
         except Exception as e:
-            self.slogger.error(f'ERROR {e} in handshake when recieveving confirm')
+            self.slogger.error(f'ERROR {e} in handshake when sending confirm')
             return [False, None]
         
     def add_sock_bind(self, addr, peer_key):
@@ -391,7 +415,11 @@ class server_class():
         except:
             self.slogger.error(f'Unable to send data to addr {addr_to_send} because peer pub not saved in dict. May happen if never handshake with this addr.')
             return False
-        Cipher=self.clients.dict[peer_pub]['temp_cipher']
+        try:
+            Cipher=self.clients.dict[peer_pub]['temp_cipher']
+        except:
+            slogger.error('Was unable to find a cipher for client. Prob client was removed')
+            return False
         ciphertext=Cipher.encrypt(data)
         len_of_data=len(ciphertext)+10 #здесь при вызове функции обновляются переменные для CBC даже в словаре self.clients.dict
         data=bytearray(len_of_data.to_bytes(length=5, signed=False))+bytearray(ciphertext)+bytearray(len_of_data.to_bytes(length=5, signed=False))
@@ -412,7 +440,12 @@ class server_class():
                 peer_pub=self.sock_client_binding[addr_to_send]
             except:
                 self.slogger.error(f'Unable to read data from addr {addr_to_send} because peer pub not saved in dict. May happen if never handshake with this addr.')
-            Cipher=self.clients.dict[peer_pub]['temp_cipher']
+                return None
+            try:
+                Cipher=self.clients.dict[peer_pub]['temp_cipher']
+            except:
+                slogger.error('Was unable to find a cipher for client. Prob client was removed')
+                return False
             data=bytearray()
             if nonblock:
                 try:
@@ -453,7 +486,7 @@ class server_class():
             while True:
                 if not handshake_complete:
                     print(f'Waiting for first handshake message')
-                    msg = await loop.sock_recv(sock, self.BUF_SIZE)
+                    msg = await loop.sock_recv(sock, 6)
                     print(f'First message recv, starting handshake from {addr[0]}:{addr[1]}')
                     returned = await self.handshake(loop, msg, sock)
                     if returned[0]:
@@ -494,35 +527,45 @@ class server_class():
                 if handshake_complete:
                     msg=await self.read_encrypted(loop, sock, True)
                     print(f'Server is ticking {time.time()}', flush=True, end='\r')
+                    if current_peer_pub not in list(self.clients.dict.keys()):
+                        slogger.error('Client seems to be removed')
+                        return
                     if msg==False:
                         slogger.error(f'Cipher was unable to decrypt')
                         return
-                    if msg==None:
+                    elif msg==None and msg!=b'':
+                        slogger.error('msg was None. Breaking')
+                        handshake_complete=False
                         break
-                    if len(msg)>1:
-                        if msg[0]==b'2'[0]:
-                            slogger.debug(f'Parsing command reply')
-                            peer_pub=self.check_sock_pub(sock.getpeername())
-                            success = await self.parse_command_out(peer_pub, msg)
-                    if len(self.clients.dict[current_peer_pub]['temp_tasks'])>0: #Чек если есть таски для клиента
-                        task=self.clients.dict[current_peer_pub]['temp_tasks'][0]
-                        id=await self._create_command(loop, sock, task['type'], task['payload'])
-                        slogger.info(f'Sending task {id} {task} to client')
-                        self.clients.dict[current_peer_pub]['temp_tasks'].pop(0)
-                    if 'temp_stats' not in list(self.clients.dict[current_peer_pub].keys()):
-                        self.clients.dict[current_peer_pub]['temp_stats']=True
-                    if self.clients.dict[current_peer_pub]['temp_stats']:
-                        current_time=time.time()
-                        if current_time - recent_stats_requested>30.0:
-                            recent_stats_requested=current_time
-                            print('Added stat by timeout')
-                            self.add_command(current_peer_pub, 'stat')
+                    else:
+                        if len(msg)>1:
+                            if msg[0]==b'2'[0]:
+                                slogger.debug(f'Parsing command reply')
+                                peer_pub=self.check_sock_pub(sock.getpeername())
+                                success = await self.parse_command_out(peer_pub, msg)
+                        
+                        if len(self.clients.dict[current_peer_pub]['temp_tasks'])>0: #Чек если есть таски для клиента
+                            task=self.clients.dict[current_peer_pub]['temp_tasks'][0]
+                            id=await self._create_command(loop, sock, task['type'], task['payload'])
+                            if id==False:
+                                slogger.error(f'ERR creating command, return was {id}. Closing loop')
+                                return
+                            slogger.info(f'Sending task {id} {task} to client')
+                            self.clients.dict[current_peer_pub]['temp_tasks'].pop(0)
+                        if 'temp_stats' not in list(self.clients.dict[current_peer_pub].keys()):
+                            self.clients.dict[current_peer_pub]['temp_stats']=True
+                        if self.clients.dict[current_peer_pub]['temp_stats']:
+                            current_time=time.time()
+                            if current_time - recent_stats_requested>30.0:
+                                recent_stats_requested=current_time
+                                print('Added stat by timeout')
+                                self.add_command(current_peer_pub, 'stat')
 
                     
                 if msg==b'': #типа тут мы подвисаем если данных нет
                     pass
                 if msg==None:
-                    print('msg was None. Breaking')
+                    slogger.error('msg was None. Breaking')
                     handshake_complete=False
                     break
                 self.slogger.debug(f"recv {msg}")
@@ -531,7 +574,10 @@ class server_class():
         finally:
             handshake_complete=False
             self.slogger.info(f'Client disconnected')
-            self.remove_sock_bind(sock.getpeername())
+            try:
+                self.remove_sock_bind(sock.getpeername())
+            except:
+                pass
             sock.close()
 
     def listen_for_connections(self):
@@ -539,7 +585,6 @@ class server_class():
         asyncio.set_event_loop(loop)
 
         mainsock = socket.socket(AF_INET, SOCK_STREAM)
-        #mainsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             mainsock.bind((self.SERVER_IP, self.SERVER_PORT))
             self.slogger.info(f"Server listening at {self.SERVER_IP}:{self.SERVER_PORT}")

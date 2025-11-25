@@ -1,9 +1,7 @@
 {% extends "content_layout.html" %}
 
-
 {% block inner_content %}
 <h1>Задания</h1>
-
 
 {% if table_data %}
 <div style="max-height:95%; overflow-y:auto; border:1px solid #ccc;">
@@ -26,6 +24,5 @@
 {% else %}
 <p>Нет данных для отображения.</p>
 {% endif %}
-
 
 {% endblock %}

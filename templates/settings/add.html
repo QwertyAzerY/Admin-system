@@ -1,0 +1,18 @@
+{% extends "content_layout.html" %}
+
+{% block inner_content %}
+<h1>{{ title }}</h1>
+
+<form method="post" action="/create_client" style="max-width: 1000px; margin: 20px;">
+    <label for="arm-name">Название арм (alias)</label><br>
+    <input type="text" id="textInput" name="arm-name" style="width: 100%; padding: 6px; margin-bottom: 10px;"><br>
+    <button type="submit" style="padding: 8px 16px;">Подтвердить</button>
+    {% if result %}
+    <textarea style="width:100%; height:300px; overflow-y:auto; white-space:pre-wrap;">{{ result }}</textarea>
+    {% endif %}
+</form>
+
+<h3>Скачать клиент можно <a href="/download_client">тут</a>.</h3>
+
+
+{% endblock %}
