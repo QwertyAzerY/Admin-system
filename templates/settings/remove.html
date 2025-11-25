@@ -1,0 +1,25 @@
+{% extends "content_layout.html" %}
+
+{% block inner_content %}
+<h1>{{ title }}</h1>
+
+<form method="post" action="/remove_client" style="max-width: 1000px; margin: 20px;">
+    <label for="arm-name">Выберите амр для удаления</label><br>
+    <div style="max-height: 900px; overflow-y: auto; border: 1px solid #ccc; padding: 5px; margin-bottom: 10px;">
+        {% for value, label in options_data %}
+        <label style="display: block; margin-bottom: 5px;">
+            <input type="checkbox" name="options" value="{{ value }}" style="width: 16px; height: 16px; accent-color: black;">
+            {{ label }}
+        </label>
+        {% endfor %}
+    </div>
+    <button type="submit" style="padding: 8px 16px;">Подтвердить</button>
+    {% if result %}
+    <textarea style="width:100%; height:300px; overflow-y:auto; white-space:pre-wrap;">{{ result }}</textarea>
+    {% endif %}
+</form>
+
+
+
+
+{% endblock %}

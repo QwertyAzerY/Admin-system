@@ -9,6 +9,7 @@ import json
 from exec import exec
 from random import randint, randbytes
 from users import users
+import sys
 
 SERVER_IP = "192.168.88.254"  # адрес сервера
 SERVER_PORT=51235
@@ -17,7 +18,11 @@ BUF_SIZE=1024
 
 class client_class():
     def __init__(self, conf_filename, test_mode=False):
-        self.read_conf(conf_filename)
+        try:
+            self.read_conf(conf_filename)
+        except Exception as E:
+            clogger.fatal(f'{E}')
+            os._exit(1)
         self.test_mode=test_mode
         self.exec=exec()
         self.users=users()
@@ -92,24 +97,34 @@ class client_class():
         self.SERVER_PORT=SERVER_PORT
 
     async def handshake(self, reader : asyncio.StreamReader, writer : asyncio.StreamWriter):
-        random_lengh=16
-        rand_seed=os.urandom(16)
+        random_lengh=32
+        rand_seed=int(os.urandom(32).hex(), 16)
+        p_r_list=self.key.mul_pub_int(rand_seed)
+        p_r=my_crypto.cv.decode_point(p_r_list)
         message_bytes=[]
         message_bytes.append(0x0)
         message_bytes+=my_crypto.bytes_ints(self.key.export_public())
-        message_bytes+=my_crypto.bytes_ints(rand_seed)
-        handshake_message=bytes(message_bytes)
+        message_bytes+=p_r_list
+        
+        msg_len=len(message_bytes)+5
+        handshake_message=bytes(my_crypto.bytes_ints(msg_len.to_bytes(length=5))+message_bytes)
         writer.write(handshake_message)
         try:
             await writer.drain()
         except Exception as e:
             raise e
-        message_from_server = await reader.readexactly(65)
-        shared_key=my_crypto.generate_shared_key(message_from_server[1:65], self.key.export_secret(), rand_seed)
+        x=int.from_bytes(self.conf.settings['peer_key'])
+        y=my_crypto.cv.y_recover(x)
+        serv_pub_point=my_crypto.Point(x, y, my_crypto.cv)
+        shared_key=my_crypto.mult_P_k(my_crypto.cv.encode_point(serv_pub_point), self.key.s_key*rand_seed)
         Cipher=my_crypto.BlockCipherAdapter(shared_key[0:32],shared_key[33:49])
-        random_data=os.urandom(random_lengh)
-        random_encrypted=Cipher.encrypt(random_data)
-        writer.write(random_encrypted)
+
+        random_msg = await reader.read(1024)
+        random_data = Cipher.decrypt(random_msg)
+        random_data=list(random_data)
+        random_data.reverse()
+        random_enc=Cipher.encrypt(bytes(random_data))
+        writer.write(random_enc)
         try:
             await writer.drain()
         except Exception as e:
@@ -118,16 +133,15 @@ class client_class():
             readed = await reader.read(1024)
         except Exception as e:
             raise e
-        readed=Cipher.decrypt(readed)
-        r2=list(readed)
-        r=list(random_data)
-        r.reverse()
-        if r==r2:
+        try:
+            readed=Cipher.decrypt(readed)
+        except:
+            clogger.error(f'ERR Unable to dec in handshake')
+            
+        if readed==b'0':
             #Handshake are ok
-            writer.write(Cipher.encrypt(b'0'))
-            await writer.drain()
             return [True, Cipher]
-        clogger.error(f'Reversed data didnt match')
+        clogger.error(f'confirm was incorrect: {readed}')
         return [False, None]
     
     async def send_encrypted(self, data):
@@ -137,6 +151,7 @@ class client_class():
             message=bytearray(enc_len.to_bytes(length=5, signed=False))+encrypted+bytearray(enc_len.to_bytes(length=5, signed=False))
             self.writer.write(message)
             await self.writer.drain()
+
         except Exception as e:
             clogger.error(f'ERR {e} sending plaintext')        
     
@@ -168,6 +183,7 @@ class client_class():
             if secondary_len_block!=data_len_array:
                 raise Exception('Len in end of message not equal to len in beggining')
             plaintext=self.Cipher.decrypt(bytes(data))
+
             return plaintext
         except Exception as e:
             clogger.error(f'ERR {e} reading from server')
@@ -201,16 +217,16 @@ class client_class():
                                 writer.close()
                                 return False
                             else:
-                                pass #кд на хендшейк?
+                                pass #кд на хендшейк?   
                         if returned[0]:
                             self.Cipher=returned[1]
                             self.reader=reader
                             self.writer=writer
                             handshake_complete=True
                             clogger.info(f'Handshake with server complete')
-                            # if self.test_mode:
-                            #     writer.close()
-                            #     return True
+                            if self.test_mode:
+                                writer.close()
+                                return True
                         else:
                             clogger.error(f"Handshake is failed")
                             if self.test_mode:
@@ -275,5 +291,31 @@ class client_class():
             
         
 if __name__=="__main__":
-    client=client_class('./clients/testing_client2.json', test_mode=True)
+    def_path='client_conf.json'
+    args=sys.argv
+    config_path=def_path
+    try:
+        ind=args.index('-c')
+        if ind<len(args):
+            config_path=args[ind+1]
+            clogger.info(f'cfg path is {config_path}')
+    except ValueError:
+        pass
+    try:
+        ind=args.index('--live-conf')
+        if len(args)>ind:
+            config=args[ind+1]
+            from base64 import b64decode
+            config_s=b64decode(config).decode()
+            config=json.loads(config_s)
+            clogger.info(f'live-conf parsed, saving to file')
+            with open(config_path, 'w') as f:
+                f.write(config_s)
+                f.close()
+    except ValueError:
+        clogger.info(f'Live config argument not specified, using default path {def_path}')
+
+    client=client_class(config_path, test_mode=False)
     asyncio.run(client.client_loop())
+
+#pyinstaller -F -p .\venv\Lib\site-packages\ .\client.py --name client.exe

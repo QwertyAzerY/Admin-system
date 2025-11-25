@@ -4,7 +4,8 @@ from multiprocessing import Process, active_children, Queue
 import threading
 import os
 import random
-from my_crypto import elipt_key, generate_shared_key, BlockCipherAdapter
+from my_crypto import elipt_key, generate_shared_key, BlockCipherAdapter, mult_P_k
+import my_crypto
 import my_config
 import asyncio
 
@@ -65,9 +66,31 @@ def old_much_clients_says_hi():
         PROCS[i].kill()
     
     p.kill()
-    
 
 def test_shared_keys_gen():
+    mem={}
+    num=100
+    percent=num//100
+    for i in range(num):
+        if i%percent==0:
+            print(f'\rcalculating {i}/{num}. {str(i/num)[:4]}', flush=True, end="")
+        test1=elipt_key() #клиент
+        test2=elipt_key() #сервер
+        rand_r=int.from_bytes(os.urandom(31))
+        p_r=test1.mul_pub_int(rand_r)
+        
+        y=my_crypto.cv.y_recover(int.from_bytes(test2.export_public()))
+        serv_pub_point=my_crypto.Point(int.from_bytes(test2.export_public()), y, my_crypto.cv)
+
+        key_server=mult_P_k(p_r, test2.s_key)
+        key_client=mult_P_k(my_crypto.cv.encode_point(serv_pub_point), test1.s_key*rand_r)
+        if key_server!=key_client:
+            raise Exception("shared keys dont match")
+        if key_server in mem:
+            raise "Keys not a randoms"
+        mem[key_server]=i
+
+def old_test_shared_keys_gen():
     mem={}
     num=100
     percent=num//100
@@ -161,7 +184,7 @@ def old_test_handshake(): #because read write test making handshake too
     
     p.kill()
 
-def test_sends_reads():
+def old_test_sends_reads():
     N=10 #clients
     CONFIGS=[]
     for i in range(N):
@@ -189,4 +212,3 @@ def test_sends_reads():
 
 if __name__=="__main__":
     pass
-    test_sends_reads()

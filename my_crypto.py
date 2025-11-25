@@ -26,21 +26,37 @@ class elipt_key():
     def __init__(self, s_key=b''):
         if s_key==b'':
             rand_k=int(urandom(63).hex(), 16)
+            while rand_k>=params['order']:
+                rand_k=int(urandom(63).hex(), 16)
             self.s_key=rand_k
         else:
             self.s_key=int.from_bytes(s_key)
         try:
             p_point=cv.mul_point(self.s_key, G)
+            self.p_point=p_point
             self.p_key=p_point.x
         except Exception as e:
             print(e)
             raise "error when genering p_key"
-    
+    def mul_pub_int(self, n):
+        t=cv.mul_point(n, self.p_point)
+        return cv.encode_point(t)
+    def mul_priv_int(self, n):
+        t=cv.mul_point(n, self.p_point)
+        return cv.encode_point(t)
+
     def export_secret(self):
         return self.s_key.to_bytes(length=64)
-    
     def export_public(self):
         return self.p_key.to_bytes(length=64)
+
+def mult_P_k(P:bytes, k:int):
+    if type(P)==Point:
+        p=P
+    else:
+        p=cv.decode_point(P)
+    shared_p=cv.mul_point(k, p)
+    return shared_p.x.to_bytes(length=64)
 
 def generate_shared_key(p_key: bytes, priv_key:bytes, random : bytes):
     p_key=int.from_bytes(p_key)
@@ -266,7 +282,7 @@ class BlockCipherAdapter:
             except IndexError:
                 xored.append(self.enc[i])
         ciphertext=self.C.encryption(xored)
-        self.enc=ciphertext
+
         return bytes(ciphertext)
 
     def _decrypt_block(self, block: bytes) -> bytes:
@@ -277,7 +293,7 @@ class BlockCipherAdapter:
                 xored.append(plaintext[i]^self.dec[i])
             except IndexError:
                 xored.append(self.dec[i])
-        self.dec=block
+        self.dec_temp=block
         return bytes(xored)
 
     # === Публичные методы ===
@@ -309,13 +325,19 @@ if __name__=="__main__":
     pass
     key1=elipt_key()
     key2=elipt_key()
-    rand=urandom(16)
-    shared=generate_shared_key(key1.export_public(), key2.export_secret(), rand)
-    print(len(key1.export_public()), len(key2.export_secret()))
-    print(len(shared))
-    key=shared[0:32]
-    key=bytes_ints(key)
-    cbc_mode=BlockCipherAdapter(key, shared[33:49])
+    #rand_r=int.from_bytes(urandom(32))
+    rand_r=1
+    x=int.from_bytes(key2.export_public())
+    y=cv.y_recover(x)
+    serv_pub_point=Point(x, y, cv)
+    shared1=mult_P_k(cv.encode_point(serv_pub_point), key1.s_key*rand_r)
+
+    p_r=key1.mul_pub_int(rand_r)
+    pub_encoded=cv.encode_point(key1.p_point)
+    shared2=mult_P_k(cv.decode_point(p_r), key2.s_key)
+    assert shared1==shared2
+
+    cbc_mode=BlockCipherAdapter(shared1[0:32],shared1[33:49])
     msg='this is very long block testing this is very long block testing this is very long block testing this is very long block testing this is very long block testing this is very long block testing this is very long block testing this is very long block testing'
     msg=msg.encode(encoding="utf-8")
     ciphertext=cbc_mode.encrypt(msg)

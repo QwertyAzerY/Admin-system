@@ -39,23 +39,28 @@ class ByteDictDB:
     def search_users(self, peer_pub=b'', username="") ->list:
         """ specify atleast 1 of peer_pub or username """
         if peer_pub!=b'' and username!="":
-            cur=self.read_only.execute('SELECT peer_pub, username, password FROM usrs WHERE peer_pub, username = ?, ?', (peer_pub, username))
+            cur=self.read_only.execute('SELECT peer_pub, username, password, no_login FROM usrs WHERE peer_pub = ? AND username = ?', (peer_pub, username))
             rows = cur.fetchall()
             if not rows:
                 return []
             return rows
         elif peer_pub!=b'':
-            cur=self.read_only.execute('SELECT peer_pub, username, password FROM usrs WHERE peer_pub = ?', (peer_pub,))
+            cur=self.read_only.execute('SELECT peer_pub, username, password, no_login FROM usrs WHERE peer_pub = ?', (peer_pub,))
             rows = cur.fetchall()
             if not rows:
                 return []
             return rows
         else:
-            cur=self.read_only.execute('SELECT peer_pub, username, password FROM usrs WHERE username = ?', (username,))
+            cur=self.read_only.execute('SELECT peer_pub, username, password, no_login FROM usrs WHERE username = ?', (username,))
             rows = cur.fetchall()
             if not rows:
                 return []
             return rows
+        
+    def remove_users(self, peer_pub:bytes):
+        cur=self.conn.execute('DELETE FROM usrs WHERE peer_pub = ?', (peer_pub,))
+        res=cur.fetchall()
+        print()
         
     def read_many_users(self, filter) ->list:
         iswhere=''
@@ -67,14 +72,14 @@ class ByteDictDB:
                 flag=True
                 values.append(0)
             elif filter[0]=='0':
-                iswhere+='no_login = ?'
-                flag=True
-                values.append(1)
-            if flag:
-                cur = self.read_only.execute(f'SELECT peer_pub, username, password FROM usrs WHERE {iswhere}', values)
-                rows = cur.fetchall()
+                #iswhere+='no_login = ?'
+                flag=False
+                #values.append(1)
+        if flag:
+            cur = self.read_only.execute(f'SELECT peer_pub, username, password, no_login FROM usrs WHERE {iswhere}', values)
+            rows = cur.fetchall()
         else:
-            cur = self.read_only.execute('SELECT peer_pub, username, password FROM usrs')
+            cur = self.read_only.execute('SELECT peer_pub, username, password, no_login FROM usrs')
             rows = cur.fetchall()
         if not rows:
             return []
@@ -104,7 +109,7 @@ class ByteDictDB:
             return rows
         
     def next_id(self, peer_pub:bytes) -> int:
-        cur = self.conn.execute("SELECT * FROM commands WHERE peer_pub = ? ORDER BY command_id DESC LIMIT 1", (peer_pub, ))
+        cur = self.read_only.execute("SELECT * FROM commands WHERE peer_pub = ? ORDER BY command_id DESC LIMIT 1", (peer_pub, ))
         row = cur.fetchone()
         if row==None:
             return 0
@@ -195,6 +200,7 @@ class users_cache:
     def add_host_users(self, peer_pub:bytes, usrs:dict):
         #maybe add existing users check
         #dict of users {username:{password:PASSHASH}}
+        self.DB.remove_users(peer_pub)
         self.DB.save_users(peer_pub, usrs)
 
     def read_saved_users(self, peer_pub:bytes, username:str):

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, Response
+from flask import Flask, render_template, request, jsonify, redirect, Response, send_file
 import threading
 from server import server_class
 import os
@@ -103,10 +103,24 @@ def users_refresh():
 
 @app.route('/users/get')
 def get_users_filtered():
-    filter = str(request.args.get("filter", ''))
-    headers,lines=server.get_status('users', filter)
-    table=[]
-    table.append(headers)
+    arg=str(request.args.get("arg", ''))
+    if arg=='delete':
+        filter = str(request.args.get("filter", ''))
+        users=server.USERS.read_all(filter)
+        table=[]
+        for usr in users:
+            row=[]
+            row.append(usr[0].hex())
+            row.append(usr[1])
+            row.append(server.clients.dict[usr[0]]['alias'])
+            row.append('' if usr[3]==0 else 'NO LOGIN')
+            table.append(row)
+        return jsonify(table)
+    else:
+        filter = str(request.args.get("filter", ''))
+        headers,lines=server.get_status('users', filter)
+        table=[]
+        table.append(headers)
     for row in lines:
         table.append(row)
     return jsonify(table)
@@ -122,15 +136,36 @@ def users_create():
     check_boxes=zip(values, labels)
     return render_template("/users/create.html", title="Создать пользователя", active='Создать пользователя', inner_menu=inner_menu_users, options_data=check_boxes)
 
+@app.route('/users/remove')
+def users_remove():
+
+
+    return render_template("/users/remove.html", title="Удалить пользователя", active='Удалить пользователя', inner_menu=inner_menu_users)
+
+@app.route('/users/remove/submit', methods=["POST"])
+def users_remove_submit():
+    options=request.form.getlist('options')
+    try:
+        result, s_res=server.remove_user_task(options)
+    except Exception as E:
+        server.slogger.error(f"Ошибка при удалении пользователя: {E}")
+        return Response(f"Ошибка при удалении пользователя: {E}", mimetype="text/plain")
+    if not result:
+        return Response(f"Ошибки при удалении некоторых пользователей: {s_res}", mimetype="text/plain")
+    return redirect('/tasks')
+
 @app.route('/users/create/submit', methods=["POST"])
 def users_create_submit():
     username=request.form.get('username')
     password=request.form.get('pass1')
     hosts=request.form.getlist('options')
     try:
-        server.create_user_task(username, password, hosts)
+        result, s_res=server.create_user_task(username, password, hosts)
     except Exception as E:
-        return Response("Ошибка при создании пользователя: {E}", mimetype="text/plain")
+        server.slogger.error(f"Ошибка при создании пользователя: {E}")
+        return Response(f"Ошибка при создании пользователя: {E}", mimetype="text/plain")
+    if not result:
+        return Response(f"Ошибки при создании некоторых пользователей: {s_res}", mimetype="text/plain")
     return redirect('/tasks')
 
 inner_menu_tasks = [
@@ -140,7 +175,8 @@ inner_menu_tasks = [
 @app.route('/tasks')
 def tasks():
     table_headers, table_data=server.get_status('tasks')
-    return render_template("tasks.html", title="Задания", active='Обзор', inner_menu=inner_menu_tasks, table_headers=table_headers,
+    return render_template("tasks.html", title="Задания", active='Обзор', 
+    inner_menu=inner_menu_tasks, table_headers=table_headers,
     table_data=table_data)
 
 @app.route("/task/<task_id>")
@@ -169,10 +205,75 @@ def tasks_create_submin():
         pass
     return redirect('/tasks')
 
+
+inner_menu_settings = [
+        {"name": "Основные настройки", "url": "/settings"},
+        {"name": "Добавить АРМ", "url": "/create_client"},
+        {"name": "Удалить АРМ", "url": "/remove_client"},
+    ]
+
 @app.route('/settings')
 def settings():
-    return render_template("settings.html", title="Настройки", content="Здесь будут настройки системы.")
+    return render_template("settings.html", title="Управление",
+                        content="Здесь будут настройки системы.",
+                        inner_menu=inner_menu_settings,
+                        active='Основные настройки')
 
+@app.route('/create_client', methods=["GET", "POST"])
+def arm_add():
+    if request.method == 'POST':
+        alias=request.form.get('arm-name')
+        cfg=server.create_client(alias)
+        config_b64=cfg.export_b64()
+        final_str=f'client --live-conf {config_b64}'
+        return render_template("settings/add.html", title="Добавить АРМ",
+                            result=final_str,
+                            inner_menu=inner_menu_settings,
+                            active='Добавить АРМ')
+    else:
+        return render_template("settings/add.html", title="Добавить АРМ",
+                    inner_menu=inner_menu_settings,
+                    active='Добавить АРМ')
+
+@app.route('/remove_client', methods=["GET", "POST"])
+def arm_remove():
+    if request.method == 'POST':
+        hosts=request.form.getlist('options')
+        final_str=''
+        for host in hosts:
+            try:
+                server.remove_client(host)
+            except Exception as E:
+                final_str+=f'{E}\n'
+        _, clients=server.get_status('clients_for_exec')
+        labels, values=[], [],
+        for i in range(len(clients)):
+            temp=f'{clients[i][0]} {clients[i][2]}'
+            labels.append(temp)
+            values.append(clients[i][1])
+        check_boxes=zip(values, labels)
+        return render_template("settings/remove.html", title="Удалить АРМ",
+                            result=final_str,
+                            inner_menu=inner_menu_settings,
+                            active='Удалить АРМ',
+                            options_data=check_boxes)
+    else:
+        _, clients=server.get_status('clients_for_exec')
+        labels, values=[], [],
+        for i in range(len(clients)):
+            temp=f'{clients[i][0]} {clients[i][2]}'
+            labels.append(temp)
+            values.append(clients[i][1])
+        check_boxes=zip(values, labels)
+        return render_template("settings/remove.html", title="Удалить АРМ",
+                    inner_menu=inner_menu_settings,
+                    active='Удалить АРМ',
+                    options_data=check_boxes)
+
+
+@app.route('/download_client')
+def dowload_client():
+    return send_file('./dist/client.exe')
 class web():
     def __init__(self, host:str, port:int):
         self.host=host
@@ -184,10 +285,10 @@ class web():
         app.run(host=self.host, port=self.port, debug=False, use_reloader=False)
 
 def run_thread():
-    app.run(host="0.0.0.0", port=51234)
+    app.run(host="0.0.0.0", port=server.SERVER_PORT-1)
 
 if __name__ == "__main__":
     server_thread = threading.Thread(target=run_thread, daemon=True)
     server_thread.start()
-    server.create_client(filename='./clients/testing_client2.json')
+    #server.create_client(filename='./clients/testing_client2.json')
     server.listen_for_connections()

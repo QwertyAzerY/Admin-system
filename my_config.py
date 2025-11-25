@@ -141,6 +141,12 @@ class c_Config():
         #     self.load_old()
         self.set_fixing()
     
+    def export_b64(self) -> str:
+        from base64 import b64encode
+        b64=b64encode(dumps(self.fix_set_saving_and_bytes()).encode())
+        s=b64.decode('ascii')
+        return s
+
     def create_new(self, filename, peer_key, alias, s_conf:s_Config):
         if peer_key==b'':
             raise Exception("You must specify peer pub key if you dont import settings")
