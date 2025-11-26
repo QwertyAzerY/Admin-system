@@ -1,9 +1,9 @@
 class my_tpm():
 
-    def __init__(self, nv_path):
+    def __init__(self, path):
         from tpm2_pytss import FAPI
         self.fapi = FAPI()
-        self.NV_PATH=nv_path
+        self.NV_PATH=path
 
         # Инициализация FAPI (если не делали)
         self.fapi.provision()

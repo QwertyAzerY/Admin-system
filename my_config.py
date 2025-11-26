@@ -1,7 +1,8 @@
 import my_crypto
 import time
 from json import load, dump, dumps, loads
-from os import path
+from os import path, remove
+from sys import exit
 from hashlib import sha256
 
 class clients():
@@ -62,28 +63,32 @@ class s_Config():
         self.filename=filename
         self.tpm_recovery=False
         self.tpm_active=False
-        try:
-            tpm_config=open('tpm.json', "r")
-            self.tpm_config=load(tpm_config)
-            tpm_config.close()
-            if self.tpm_config['recovery-key']!='':
-                self.tpm_key=bytes.fromhex(self.tpm_config['recovery-key'])
-                self.tpm_recovery=True
-            else:
-                if self.check_tpm():
-                    from tpm_support import my_tpm
-                    self._tpm=my_tpm(tpm_config['path'])
-                    try:
-                        self.tpm_key=self._tpm.read()[0]
-                    except:
-                        raise Exception(f'Config was unable to read tpm key from {tpm_config['path']}')
+        if path.isfile('tpm.json'):
+            try:
+                tpm_config=open('tpm.json', "r")
+                self.tpm_config=load(tpm_config)
+                tpm_config.close()
+                if self.tpm_config['recovery-key']!='':
+                    recovery=bytes.fromhex(self.tpm_config['recovery-key'].replace('-', ''))
+                    self.tpm_key=bytes().fromhex(sha256(recovery).hexdigest())
+                    self.tpm_recovery=True
                 else:
-                    raise Exception(f'Поддержки TPM нет, но конфигурации tpm не содержит recovery ключа')
-            self.tpm_cipher=my_crypto.BlockCipherAdapter(self.tpm_key, b'')
-            self.tpm_active=True
-        except Exception as E:
-            print(f'Возникла неизвестная ошибка при попытке прочитать TPM конфиг {E}')
-            self.tpm_active=False
+                    if self.check_tpm():
+                        from tpm_support import my_tpm
+                        #print(type(self.tpm_config))
+                        self._tpm=my_tpm(self.tpm_config['path'])
+                        try:
+                            self.tpm_key=self._tpm.read()[0]
+                        except:
+                            raise Exception(f'Config was unable to read tpm key from {self.tpm_config["path"]}')
+                    else:
+                        raise Exception(f'Поддержки TPM нет, но конфигурации tpm не содержит recovery ключа')
+                self.tpm_cipher=my_crypto.BlockCipherAdapter(self.tpm_key, bytes([0 for i in range(16)]))
+                self.tpm_active=True
+            except Exception as E:
+                print(f'Возникла неизвестная ошибка при попытке прочитать TPM конфиг {E}')
+                self.tpm_active=False
+                exit()
 
         try:
             settings_file=open(self.filename, "rb")
@@ -103,13 +108,21 @@ class s_Config():
         if self.def_settings.keys()!=self.settings.keys():
             self.load_old()
         self.set_fixing()
-    
+    def turn_off_tpm(self):
+        try:
+            self.tpm_active=False
+            self.save()
+            remove('tpm.json')
+            return 'TPM успешно выключен'
+        except Exception as E:
+            return f"ошибка выключения tpm {E}"
     def check_tpm(self):
         try:
             from tpm_support import my_tpm
-            test=my_tpm()
+            test=my_tpm(path="/nv/Owner/test")
             return True
-        except:
+        except Exception as E:
+            print(E)
             return False
 
     def init_tpm(self, path="/nv/Owner/system_key"):
@@ -119,22 +132,23 @@ class s_Config():
             return False, 'Ошибка, tpm не поддерживается'
         from tpm_support import my_tpm
         print('Инициальзация tpm')
-        self._tpm=my_tpm()
+        self._tpm=my_tpm(path)
         print('Генерация секрета')
         key=my_crypto.urandom(8)
         reserve_key=key.hex(sep='-', bytes_per_sep=4)
-        key=bytes.fromhex(sha256(key).hexdigest)
+        key=bytes.fromhex(sha256(key).hexdigest())
         print(f'Ваш резервный ключ: {reserve_key}')
         self._tpm.save(key)
-        self.tpm_cipher=my_crypto.BlockCipherAdapter(key, b'')
+        self.tpm_cipher=my_crypto.BlockCipherAdapter(key, bytes([0 for i in range(16)]))
         print(f'Шифр создан, сохраняю файл описания')
-        with open('tpm.json', 'r') as f:
+        with open('tpm.json', 'w') as f:
             conf={
                 'path':path,
                 'recovery-key':""
             }
             dump(conf, f)
         print(f'Сохраняю зашифрованный конфиг.')
+        self.tpm_active=True
         self.save()
         return True, reserve_key
 
@@ -183,7 +197,7 @@ class s_Config():
             plain_data=dumps(self.fix_set_saving_and_bytes(), indent=4)
             plain_data=plain_data.encode()
             if self.tpm_active and not self.tpm_recovery:
-                self.tpm_cipher=my_crypto.BlockCipherAdapter(self.tpm_key, b'')
+                self.tpm_cipher=my_crypto.BlockCipherAdapter(self.tpm_key, bytes([0 for i in range(16)]))
                 data=self.tpm_cipher.encrypt(plain_data)
             else:
                 data=plain_data

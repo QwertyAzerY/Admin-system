@@ -238,7 +238,7 @@ def settings():
                             vals=vals,
                             inner_menu=inner_menu_settings,
                             active='Основные настройки',
-                            TPM=tpm_support)
+                            TPM=tpm_support, TPMactive=TPMactive)
     else:
         server.conf.settings['SERVER_IP']=request.form.get('controlserverip')
         server.conf.settings['s_pub_ip']=request.form.get('controlserverpub')
@@ -269,11 +269,22 @@ def settings():
                             vals=vals,
                             inner_menu=inner_menu_settings,
                             active='Основные настройки', result=result,
-                            TPM=tpm_support)
+                            TPM=tpm_support, TPMactive=TPMactive)
 
 @app.route('/tpm-submit', methods=["POST"])
 def tpm_submit():
-    chechbox=request.form.get()
+    chechbox=request.form.get('tpm-checkbox', type=bool)
+    #print('tpm checkbox', chechbox)
+    if server.conf.tpm_active==False and chechbox==True:
+        flag, desc = server.conf.init_tpm()
+        if flag:
+            desc='TPM успешно активирован, сохраните резервный ключ(recovery-key) '+desc+' Он потербуется в случае миграции на другой сервер для расшифровки файла конфигурации.'
+        return Response(desc, mimetype="text/plain")
+    if server.conf.tpm_active and chechbox==None:
+        desc=server.conf.turn_off_tpm()
+        return Response(desc, mimetype="text/plain")
+    print(f'TPM chechbox was {chechbox} and tpm is {server.conf.tpm_active}')
+    return redirect('/settings')
 @app.route('/create_client', methods=["GET", "POST"])
 def arm_add():
     if request.method == 'POST':

@@ -45,7 +45,7 @@ class server_class():
                 cmd=user_add_command.format(username, password)
                 cmd_ids.append(self.add_command(host, 'exec', cmd.encode()))
             else:
-                duplicates.append(f'ERR, user {username} already exist at host {self.clients.dict[host]['alias']}')
+                duplicates.append(f"ERR, user {username} already exist at host {self.clients.dict[host]['alias']}")
         if len(duplicates)>0:
             rtr_str=''
             for d in duplicates:
@@ -74,7 +74,7 @@ class server_class():
                 h=['Alias', 'Client Pub', 'Remote addr']
                 for client_pub in self.clients.dict.keys():
                     temp=[]
-                    temp.append(f'{self.clients.dict[client_pub]['alias']}')
+                    temp.append(f'{self.clients.dict[client_pub]["alias"]}')
                     temp.append(f'{client_pub.hex()}')
                     for addr in self.sock_client_binding.keys():
                         if self.sock_client_binding[addr]==client_pub:
@@ -103,14 +103,14 @@ class server_class():
                 for user in users:
                     temp=[]
                     temp.append(user[1])
-                    temp.append(f'{self.clients.dict[user[0]]['alias']}')
+                    temp.append(f'{self.clients.dict[user[0]]["alias"]}')
                     ret.append(temp)
             elif category=='clients':#returns a tuple (headers, table)
                 ret=[]
                 h=['Alias', 'Pub', 'Remote addr', 'Client stats', 'Server addr']
                 for client_pub in self.clients.dict.keys():
                     temp=[]
-                    temp.append(f'{self.clients.dict[client_pub]['alias']}')
+                    temp.append(f'{self.clients.dict[client_pub]["alias"]}')
                     temp.append(f'{client_pub.hex()[:2]}***{client_pub.hex()[-4:]}')
                     for addr in self.sock_client_binding.keys():
                         if self.sock_client_binding[addr]==client_pub:
@@ -132,16 +132,16 @@ class server_class():
                             temp_stats+=' err'
                         try:
                             temp_stats+=f' ПАМЯТЬ'
-                            temp_stats+=f' {stats_dict['mem_usage']:.1f}%'
+                            temp_stats+=f' {stats_dict["mem_usage"]:.1f}%'
                         except:
                             temp_stats+=' err'
                         try:
                             temp_stats+=f' ОБНОВЛЕНО'
-                            temp_stats+=f' {datetime.fromtimestamp(stats_dict['timestamp']).strftime("%H:%M")}'
+                            temp_stats+=f' {datetime.fromtimestamp(stats_dict["timestamp"]).strftime("%H:%M")}'
                         except Exception as E:
                             temp_stats+=f' err'
                     temp.append(temp_stats)
-                    temp.append(f'{self.clients.dict[client_pub]['SERVER_IP']}:{self.clients.dict[client_pub]['SERVER_PORT']}')
+                    temp.append(f'{self.clients.dict[client_pub]["SERVER_IP"]}:{self.clients.dict[client_pub]["SERVER_PORT"]}')
                     ret.append(temp)
             elif category=='tasks':
                 ret=[]
@@ -214,7 +214,7 @@ class server_class():
             slogger.info(f'Pulling Users')
             for c in self.clients.dict.keys():
                 if c in self.sock_client_binding.values():
-                    slogger.info(f'Pulling Users from {self.clients.dict[c]['alias']}')
+                    slogger.info(f"Pulling Users from {self.clients.dict[c]['alias']}")
                     self.add_command(c, 'usrs')
         except Exception as E:
             slogger.error(f'Error pulling users {E}')

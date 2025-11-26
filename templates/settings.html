@@ -28,11 +28,11 @@
     {% endif %}
 </form>
 
-<label>Поддержка TPM {{ TPM }}</label><br>
+<label>Аппаратная поддержка TPM {{ TPM }}</label><br>
 {% if TPM %}
 <form method="post" action="/tpm-submit" style="max-width: 1000px; margin: 20px;">
-<label for="tpm-checkbox">Включить поддержку TPM</label><br>
- <input type="checkbox", name="tpm-checkbox">
+<label for="tpm-checkbox">Включить TPM для шифрования конфига</label><br>
+ <input type="checkbox", name="tpm-checkbox" {% if TPMactive %}checked{% endif %}>
  <button type="submit" style="padding: 8px 16px;">Подтвердить</button>
 </form>
 {% endif %}
