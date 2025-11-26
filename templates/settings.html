@@ -3,26 +3,35 @@
 {% block inner_content %}
 <h1>Настройки</h1>
 
-{% if table_data %}
-<div style="max-height:95%; overflow-y:auto; border:1px solid #ccc;">
-<table border="1" cellspacing="0" cellpadding="5", style="width:100%; border-collapse:collapse;">
-    <tbody>
-        {% for row in table_data %}
-        <tr>
-            {% for cell in row %}
-                {% if loop.first %}
-                    <td><a href="/task/{{ cell }}">Подробнее</a></td>
-                {% else %}
-                    <td>{{ cell }}</td>
-                {% endif %}
-            {% endfor %}
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-</div>
-{% else %}
-<p>Нет данных для отображения.</p>
-{% endif %}
+<form method="post" action="/settings" style="max-width: 1000px; margin: 20px;">
+    <label for="control-server-ip">IP интерфейса на котором будет слушать сервер. (прим 0.0.0.0)</label><br>
+    <input value="{{ vals.controlserverip }}" type="text" id="textInput" name="controlserverip" style="width: 100%; padding: 6px; margin-bottom: 10px;"><br>
+
+    <label for="control-server-pub">IP который будет подставлен в конфиг клиента. (прим 192.168.88.2)</label><br>
+    <input value="{{ vals.controlserverpub }}" type="text" id="textInput" name="controlserverpub" style="width: 100%; padding: 6px; margin-bottom: 10px;"><br>
+
+    <label for="control-server-port">Порт сервера</label><br>
+    <input value="{{ vals.controlserverport }}" type="text" id="textInput" name="controlserverport" style="width: 100%; padding: 6px; margin-bottom: 10px;"><br>
+
+    <label for="web-server-ip">IP WEB панели управления</label><br>
+    <input value="{{ vals.webserverip }}" type="text" id="textInput" name="webserverip" style="width: 100%; padding: 6px; margin-bottom: 10px;"><br>
+
+    <label for="web-server-port">Порт WEB панели управления</label><br>
+    <input value="{{ vals.webserverport }}" type="text" id="textInput" name="webserverport" style="width: 100%; padding: 6px; margin-bottom: 10px;"><br>
+
+    <label>Поддержка TPM {{ TPM }}</label><br>
+
+    {% if TPM %}
+    <label for="tpm-checkbox">Порт WEB панели управления</label><br>
+    <input value="{{ TPMactive }}" type="text" id="textInput" name="webserverport" style="width: 100%; padding: 6px; margin-bottom: 10px;"><br>
+    {% endif %}
+    
+    <button type="submit" style="padding: 8px 16px;">Подтвердить</button>
+
+    {% if result %}
+    <textarea style="width:100%; height:300px; overflow-y:auto; white-space:pre-wrap;">{{ result }}</textarea>
+    {% endif %}
+</form>
+
 
 {% endblock %}

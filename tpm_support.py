@@ -1,6 +1,6 @@
 class my_tpm():
 
-    def __init__(self, nv_path="/nv/Owner/system_key"):
+    def __init__(self, nv_path):
         from tpm2_pytss import FAPI
         self.fapi = FAPI()
         self.NV_PATH=nv_path

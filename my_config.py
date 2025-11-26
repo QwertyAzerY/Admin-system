@@ -1,7 +1,8 @@
 import my_crypto
 import time
-from json import load, dump, dumps
+from json import load, dump, dumps, loads
 from os import path
+from hashlib import sha256
 
 class clients():
     def __init__(self, filename="clients.json"):
@@ -37,6 +38,8 @@ class clients():
 
 s_default={ 
     'SERVER_PORT': 51235,
+    'SERVER_WEB_PORT':51234,
+    'SERVER_WEB_IP':"0.0.0.0",
     'SERVER_IP': "0.0.0.0",
     's_pub_ip': "127.0.0.1",
     'BUF_SIZE': 1024,
@@ -57,9 +60,37 @@ class s_Config():
         self.def_settings=s_default
         self.settings={}
         self.filename=filename
+        self.tpm_recovery=False
         try:
-            settings_file=open(self.filename, "r")
-            self.settings=load(settings_file)
+            tpm_config=open('tpm.json', "r")
+            self.tpm_config=load(tpm_config)
+            tpm_config.close()
+            if self.tpm_config['recovery-key']!='':
+                self.tpm_key=bytes.fromhex(self.tpm_config['recovery-key'])
+                self.tpm_recovery=True
+            else:
+                if self.check_tpm():
+                    from tpm_support import my_tpm
+                    self._tpm=my_tpm(tpm_config['path'])
+                    try:
+                        self.tpm_key=self._tpm.read()[0]
+                    except:
+                        raise Exception(f'Config was unable to read tpm key from {tpm_config['path']}')
+                else:
+                    raise Exception(f'Поддержки TPM нет, но конфигурации tpm не содержит recovery ключа')
+            self.tpm_cipher=my_crypto.BlockCipherAdapter(self.tpm_key, b'')
+            self.tpm_active=True
+        except Exception as E:
+            print(f'Возникла неизвестная ошибка при попытке прочитать TPM конфиг {E}')
+            self.tpm_active=False
+
+        try:
+            settings_file=open(self.filename, "rb")
+            if self.tpm_active:
+                settings_file_data=self.tpm_cipher.decrypt(settings_file.read())
+            else:
+                settings_file_data=settings_file.read()
+            self.settings=loads(settings_file_data.decode())
             settings_file.close()
         except:
             out_settings=open(self.filename, "w")
@@ -72,6 +103,41 @@ class s_Config():
             self.load_old()
         self.set_fixing()
     
+    def check_tpm(self):
+        try:
+            from tpm_support import my_tpm
+            test=my_tpm()
+            return True
+        except:
+            return False
+
+    def init_tpm(self, path="/nv/Owner/system_key"):
+        if self.tpm_active:
+            return False, 'Ошибка, tpm уже инициализирован'
+        if not self.check_tpm:
+            return False, 'Ошибка, tpm не поддерживается'
+        from tpm_support import my_tpm
+        print('Инициальзация tpm')
+        self._tpm=my_tpm()
+        print('Генерация секрета')
+        key=my_crypto.urandom(8)
+        reserve_key=key.hex(sep='-', bytes_per_sep=4)
+        key=bytes.fromhex(sha256(key).hexdigest)
+        print(f'Ваш резервный ключ: {reserve_key}')
+        self._tpm.save(key)
+        self.tpm_cipher=my_crypto.BlockCipherAdapter(key, b'')
+        print(f'Шифр создан, сохраняю файл описания')
+        with open('tpm.json', 'r') as f:
+            conf={
+                'path':path,
+                'recovery-key':""
+            }
+            dump(conf, f)
+        print(f'Сохраняю зашифрованный конфиг.')
+        self.save()
+        return True, reserve_key
+
+
     def gen_keys(self):
         key=my_crypto.elipt_key()
         return key
@@ -112,8 +178,15 @@ class s_Config():
         if filename=="-1":
             filename=self.filename
         try:
-            out_settings=open(self.filename, "w")
-            dump(self.fix_set_saving_and_bytes(), out_settings, indent=4)
+            out_settings=open(self.filename, "wb")
+            plain_data=dumps(self.fix_set_saving_and_bytes(), indent=4)
+            plain_data=plain_data.encode()
+            if self.tpm_active and not self.tpm_recovery:
+                self.tpm_cipher=my_crypto.BlockCipherAdapter(self.tpm_key, b'')
+                data=self.tpm_cipher.encrypt(plain_data)
+            else:
+                data=plain_data
+            out_settings.write(data)
             out_settings.close()
         except Exception as E:
             print(f"Error {E} while dumping server settings")
@@ -155,7 +228,7 @@ class c_Config():
         pub_key=self.key.export_public()
         pub_key=hex(pub_key[-1])[2:]
         if filename=="":
-            self.filename=f"clients/Client-{pub_key}-{ftime}.json"
+            self.filename=f"clients/Client-{alias}{pub_key}-{ftime}.json"
         else:
             self.filename=filename
         if alias=="":
@@ -223,7 +296,9 @@ class c_Config():
 
     
 if __name__=="__main__":
-    s_key=my_crypto.elipt_key()
-    test=c_Config(peer_key=s_key.export_public())
-    print(test.export_to_str())
+    key=my_crypto.urandom(8)
+    reserve_key=key.hex(sep='-', bytes_per_sep=4)
+    key=sha256(key).hexdigest()
+    key=bytes.fromhex(key)
+    print(key)
 

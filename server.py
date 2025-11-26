@@ -28,6 +28,7 @@ class server_class():
         self.commands=commands(self.DB)
         self.USERS=users_cache(self.DB)
         #self.web=web(self.conf.settings['SERVER_IP'], self.conf.settings['SERVER_PORT']-1)
+        
 
     def create_user_task(self, username, password, hosts):
         user_add_command="sudo useradd -N -m -p '{1}' {0}"
@@ -91,6 +92,14 @@ class server_class():
                     return (['ERR Invalid filter argument'], [])
                 else:
                     users=self.USERS.read_all(optional)
+                
+                for user in users:#цикл проверки что хосты не удалились
+                    if user[0] not in list(self.clients.dict.keys()):
+                        slogger.info('Удалился хост, удаляем старых юзеров')
+                        self.USERS.delete_users_old_hosts(list(self.clients.dict.keys()))
+                        users=self.USERS.read_all(optional)
+                        break
+                
                 for user in users:
                     temp=[]
                     temp.append(user[1])
@@ -231,7 +240,7 @@ class server_class():
         else:
             self.conf=s_Config(self.conf_filename)
         self.SERVER_IP=self.conf.settings['SERVER_IP']
-        self.SERVER_PORT=self.conf.settings['SERVER_PORT']
+        self.SERVER_PORT=int(self.conf.settings['SERVER_PORT'])
         self.BUF_SIZE=self.conf.settings['BUF_SIZE']
         self.server_public_ip=self.conf.settings['s_pub_ip']
         if self.conf.settings['priv_key']=='':
@@ -587,7 +596,7 @@ class server_class():
         mainsock = socket.socket(AF_INET, SOCK_STREAM)
         try:
             mainsock.bind((self.SERVER_IP, self.SERVER_PORT))
-            self.slogger.info(f"Server listening at {self.SERVER_IP}:{self.SERVER_PORT}")
+            self.slogger.info(f"Control Server listening at {self.SERVER_IP}:{self.SERVER_PORT}")
         except Exception as e:
             self.slogger.fatal(f"Failed to bind to {self.SERVER_IP}:{self.SERVER_PORT} ERR: {e}")
         mainsock.listen()

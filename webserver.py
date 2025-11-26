@@ -212,13 +212,65 @@ inner_menu_settings = [
         {"name": "Удалить АРМ", "url": "/remove_client"},
     ]
 
-@app.route('/settings')
+@app.route('/settings',  methods=["GET", "POST"])
 def settings():
-    return render_template("settings.html", title="Управление",
-                        content="Здесь будут настройки системы.",
-                        inner_menu=inner_menu_settings,
-                        active='Основные настройки')
+    tpm_support=server.conf.check_tpm()
+    if tpm_support:
+        TPMactive=server.conf.tpm_active
+    try:
+        vals={
+            'controlserverip':server.conf.settings['SERVER_IP'],
+            'controlserverpub':server.conf.settings['s_pub_ip'],
+            'controlserverport':server.conf.settings['SERVER_PORT'],
+            'webserverip':server.conf.settings['SERVER_WEB_IP'],
+            'webserverport':server.conf.settings['SERVER_WEB_PORT'],
+        }
+    except Exception as E:
+        vals={
+            'controlserverip':f'ERR {E}',
+            'controlserverpub':'',
+            'controlserverport':'',
+            'webserverip':'',
+            'webserverport':'',
+        }
+    if request.method=="GET":
+        return render_template("settings.html", title="Управление",
+                            vals=vals,
+                            inner_menu=inner_menu_settings,
+                            active='Основные настройки',
+                            TPM=tpm_support)
+    else:
+        server.conf.settings['SERVER_IP']=request.form.get('controlserverip')
+        server.conf.settings['s_pub_ip']=request.form.get('controlserverpub')
+        server.conf.settings['SERVER_PORT']=request.form.get('controlserverport')
+        server.conf.settings['SERVER_WEB_IP']=request.form.get('webserverip')
+        server.conf.settings['SERVER_WEB_PORT']=request.form.get('webserverport')
+        server.conf.save()
 
+        try:
+            vals={
+                'controlserverip':server.conf.settings['SERVER_IP'],
+                'controlserverpub':server.conf.settings['s_pub_ip'],
+                'controlserverport':server.conf.settings['SERVER_PORT'],
+                'webserverip':server.conf.settings['SERVER_WEB_IP'],
+                'webserverport':server.conf.settings['SERVER_WEB_PORT'],
+            }
+        except Exception as E:
+            vals={
+                'controlserverip':f'ERR {E}',
+                'controlserverpub':'',
+                'controlserverport':'',
+                'webserverip':'',
+                'webserverport':'',
+            }
+        result=f'Settings updated. Now you need to restart server'
+
+        return render_template("settings.html", title="Управление",
+                            vals=vals,
+                            inner_menu=inner_menu_settings,
+                            active='Основные настройки', result=result,
+                            TPM=tpm_support)
+    
 @app.route('/create_client', methods=["GET", "POST"])
 def arm_add():
     if request.method == 'POST':
@@ -285,7 +337,7 @@ class web():
         app.run(host=self.host, port=self.port, debug=False, use_reloader=False)
 
 def run_thread():
-    app.run(host="0.0.0.0", port=server.SERVER_PORT-1)
+    app.run(host=server.conf.settings['SERVER_WEB_IP'], port=server.conf.settings['SERVER_WEB_PORT'])
 
 if __name__ == "__main__":
     server_thread = threading.Thread(target=run_thread, daemon=True)

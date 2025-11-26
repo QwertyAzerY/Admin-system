@@ -61,6 +61,14 @@ class ByteDictDB:
         cur=self.conn.execute('DELETE FROM usrs WHERE peer_pub = ?', (peer_pub,))
         res=cur.fetchall()
         print()
+
+    def remove_users_not_this_pubs(self, pubs:list[bytes]):
+        values=pubs
+        placeholders = ",".join("?" for _ in values)
+
+        query = f"DELETE FROM usrs WHERE peer_pub NOT IN ({placeholders})"
+        self.read_only.execute(query, values)
+        self.read_only.commit()
         
     def read_many_users(self, filter) ->list:
         iswhere=''
@@ -208,6 +216,9 @@ class users_cache:
     
     def read_all(self, filter):
         return self.DB.read_many_users(filter)
+    
+    def delete_users_old_hosts(self, hosts:list[bytes]):
+        self.DB.remove_users_not_this_pubs(hosts)
 
 if __name__=='__main__':
     from os import urandom
