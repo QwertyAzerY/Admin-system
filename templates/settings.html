@@ -19,12 +19,7 @@
     <label for="web-server-port">Порт WEB панели управления</label><br>
     <input value="{{ vals.webserverport }}" type="text" id="textInput" name="webserverport" style="width: 100%; padding: 6px; margin-bottom: 10px;"><br>
 
-    <label>Поддержка TPM {{ TPM }}</label><br>
 
-    {% if TPM %}
-    <label for="tpm-checkbox">Порт WEB панели управления</label><br>
-    <input value="{{ TPMactive }}" type="text" id="textInput" name="webserverport" style="width: 100%; padding: 6px; margin-bottom: 10px;"><br>
-    {% endif %}
     
     <button type="submit" style="padding: 8px 16px;">Подтвердить</button>
 
@@ -33,5 +28,13 @@
     {% endif %}
 </form>
 
+<label>Поддержка TPM {{ TPM }}</label><br>
+{% if TPM %}
+<form method="post" action="/tpm-submit" style="max-width: 1000px; margin: 20px;">
+<label for="tpm-checkbox">Включить поддержку TPM</label><br>
+ <input type="checkbox", name="tpm-checkbox">
+ <button type="submit" style="padding: 8px 16px;">Подтвердить</button>
+</form>
+{% endif %}
 
 {% endblock %}

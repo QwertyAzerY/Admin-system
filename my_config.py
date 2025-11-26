@@ -61,6 +61,7 @@ class s_Config():
         self.settings={}
         self.filename=filename
         self.tpm_recovery=False
+        self.tpm_active=False
         try:
             tpm_config=open('tpm.json', "r")
             self.tpm_config=load(tpm_config)

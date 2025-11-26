@@ -270,7 +270,10 @@ def settings():
                             inner_menu=inner_menu_settings,
                             active='Основные настройки', result=result,
                             TPM=tpm_support)
-    
+
+@app.route('/tpm-submit', methods=["POST"])
+def tpm_submit():
+    chechbox=request.form.get()
 @app.route('/create_client', methods=["GET", "POST"])
 def arm_add():
     if request.method == 'POST':
