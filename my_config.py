@@ -70,7 +70,7 @@ class s_Config():
                 tpm_config.close()
                 if self.tpm_config['recovery-key']!='':
                     recovery=bytes.fromhex(self.tpm_config['recovery-key'].replace('-', ''))
-                    self.tpm_key=bytes().fromhex(sha256(recovery).hexdigest())
+                    self.tpm_key, _=self.gen_tpm_key(recovery)
                     self.tpm_recovery=True
                 else:
                     if self.check_tpm():
@@ -131,13 +131,11 @@ class s_Config():
         if not self.check_tpm:
             return False, 'Ошибка, tpm не поддерживается'
         from tpm_support import my_tpm
+        from my_yescrypt import hash_password
         print('Инициальзация tpm')
         self._tpm=my_tpm(path)
         print('Генерация секрета')
-        key=my_crypto.urandom(8)
-        reserve_key=key.hex(sep='-', bytes_per_sep=4)
-        key=bytes.fromhex(sha256(key).hexdigest())
-        print(f'Ваш резервный ключ: {reserve_key}')
+        key, reserve_key=self.gen_tpm_key()
         self._tpm.save(key)
         self.tpm_cipher=my_crypto.BlockCipherAdapter(key, bytes([0 for i in range(16)]))
         print(f'Шифр создан, сохраняю файл описания')
@@ -152,6 +150,17 @@ class s_Config():
         self.save()
         return True, reserve_key
 
+    def gen_tpm_key(self, reserve='') -> tuple[bytes, str]:
+        if reserve=='':
+            key=my_crypto.urandom(8)
+            reserve_key=key.hex('-', bytes_per_sep=4)
+        from my_yescrypt import hash_password,crypt_b64_decode
+        print(f'Ваш резервный ключ: {reserve_key}')
+        reserve_key=reserve_key.replace('-', '')
+        key=hash_password(reserve_key, b'av[og1!3G.5jvfx]')
+        key=key[1].split('$')
+        key=key[-1]
+        return crypt_b64_decode(key)[:32], reserve_key
 
     def gen_keys(self):
         key=my_crypto.elipt_key()
@@ -311,9 +320,6 @@ class c_Config():
 
     
 if __name__=="__main__":
-    key=my_crypto.urandom(8)
-    reserve_key=key.hex(sep='-', bytes_per_sep=4)
-    key=sha256(key).hexdigest()
-    key=bytes.fromhex(key)
-    print(key)
+    t=s_Config()
+    print(len(t.gen_tpm_key()[0]))
 
