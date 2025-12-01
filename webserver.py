@@ -358,3 +358,5 @@ if __name__ == "__main__":
     server_thread.start()
     #server.create_client(filename='./clients/testing_client2.json')
     server.listen_for_connections()
+
+#pyinstaller -F -p .\venv\Lib\site-packages\ --add-data .\templates\:.\templates\ .\webserver.py --name server

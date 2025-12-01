@@ -139,6 +139,7 @@ class s_Config():
         key=bytes.fromhex(sha256(key).hexdigest())
         print(f'Ваш резервный ключ: {reserve_key}')
         self._tpm.save(key)
+        self.tpm_key=key
         self.tpm_cipher=my_crypto.BlockCipherAdapter(key, bytes([0 for i in range(16)]))
         print(f'Шифр создан, сохраняю файл описания')
         with open('tpm.json', 'w') as f:
