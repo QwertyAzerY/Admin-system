@@ -4,5 +4,17 @@
         "alias": "test1",
         "SERVER_IP": "127.0.0.1",
         "SERVER_PORT": 51235
+    },
+    "fb8bf96152c06f5e005b2f83e81f88010eaf1e017d0f6ce51380051f6f7d6923f3e7623b075f8b8469d052296b39a3ae7e15abb221df63ba5f4a3beec19c28b6": {
+        "timestamp": 1764961149.6623275,
+        "alias": "ForVM",
+        "SERVER_IP": "127.0.0.1",
+        "SERVER_PORT": 51235
+    },
+    "b4caff596bf3db2acce147457bbea3d05897b7b0a9e19d96186d9b0d6adb5fc4310ce9443341afef54212f6560ebe0808613ea549412777c5a8956097553cac6": {
+        "timestamp": 1764966304.5310278,
+        "alias": "ForVM2",
+        "SERVER_IP": "127.0.0.1",
+        "SERVER_PORT": 51235
     }
 }

@@ -34,7 +34,7 @@ class client_class():
         match command_name:
             case b'updt':
                 update_command='sudo dnf update'
-                self.exec.run(bytes(command_id), update_command)
+                self.exec.run(bytes(command_id), update_command, command_name)
                 clogger.info(f'Started exec updt')
             case b'usrs':
                 retrieve_command='sudo cat /etc/shadow'
@@ -74,7 +74,7 @@ class client_class():
             case b'exec':
                 command_payload=command_array[9:]
                 cmd=bytearray.decode(command_payload)
-                self.exec.run(bytes(command_id), cmd)
+                self.exec.run(bytes(command_id), cmd, command_name)
                 clogger.info(f'Started exec {command_id}')
             
             case _:

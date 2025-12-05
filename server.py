@@ -309,8 +309,22 @@ class server_class():
             case b'updt':
                 with open('test_upd.txt', 'w') as f:
                     strings=payload.decode()
-                    f.write(strings)
+                    data=json.loads(strings)
+                    search_dict={
+                        'Выполнено!':'Выполнено.',
+                        'Отсутствуют действия для выполнения.':'Действия не требуются.',
+                    }
+                    result=''
+                    for key in data.keys():
+                        temp_list=data[key]
+                        for tmp_str in temp_list:
+                            for s_key in search_dict.keys():
+                                if tmp_str.find(s_key)!=-1:
+                                    result+=search_dict[s_key]
+                    json.dump(data, f, ensure_ascii=False)
                     f.close()
+                print(f'Результат обновления {result}')
+                self.commands.append(peer_pub, command_id, server_read=json.dumps({key:[result]}))
                     
             case b'usrs':
                 if payload!=b'':
