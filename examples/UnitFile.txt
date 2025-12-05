@@ -1,0 +1,14 @@
+[Unit]
+Description=Admin System
+After=network.target
+
+[Service]
+User=admsys
+Group=admsys
+ExecStart=/opt/adm-sys/server
+Restart=on-failure
+WorkingDirectory=/opt/adm-sys
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

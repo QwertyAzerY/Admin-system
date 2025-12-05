@@ -14,6 +14,7 @@ class exec():
     def __init__(self):
         self.DICT={}
         self.active=set()
+        self.type_ids={}
         
     
     def run_and_wait(self, id:bytes, command:str):
@@ -27,7 +28,8 @@ class exec():
     def _complete(self, id:bytes, result):
         self.DICT[id]['queue'].put(result)
 
-    def run(self, id:bytes, command:str):
+    def run(self, id:bytes, command:str, command_name:str):
+        self.type_ids[id]=command_name
         cmd=command.split(' ')
         temp_q=Queue()
         self.DICT[id]={

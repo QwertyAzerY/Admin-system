@@ -1,20 +1,8 @@
 {
-    "001a4b22882efea18570ff404505967aaa52eaebcb9e0c19068987fd6eb4179dd0b6b00e4ff216a4120b0cd9bc02b4e4cf537c8b25c4bd60d0df0e6161007c6e": {
-        "timestamp": 1764171920.3369927,
+    "be3c313da6ee7196ba19abe877fefe32fcfafa901c3cbc1086e2ea49627f58406577c705b5af42f32b33bb22f7d58f1706dbc7e42d8470e309bcf6b4caf0406e": {
+        "timestamp": 1764618436.894796,
         "alias": "test1",
-        "SERVER_IP": "192.168.88.254",
-        "SERVER_PORT": "51235"
-    },
-    "2d07e160b404bdfe7aefe15b3eaaab06bb478d97430da5971861b099fd1fe94930d881e6f6af2eb2649623a084e3d72cfd8883ad7d132d5393b438a608354833": {
-        "timestamp": 1764171927.8282897,
-        "alias": "test2",
-        "SERVER_IP": "192.168.88.254",
-        "SERVER_PORT": "51235"
-    },
-    "9332710e61e27c4477f965f94d417f7ce6d7012102122739568bd0956685ea831861f4378615cf3a453f26839c29a6471b6ffe6d6bce4525023e197f16942560": {
-        "timestamp": 1764172036.766906,
-        "alias": "test3",
-        "SERVER_IP": "192.168.88.254",
-        "SERVER_PORT": "51235"
+        "SERVER_IP": "127.0.0.1",
+        "SERVER_PORT": 51235
     }
 }

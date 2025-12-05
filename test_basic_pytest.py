@@ -210,5 +210,21 @@ def old_test_sends_reads():
         assert result == True
         PROCS[i].kill()
 
+def test_kuznechik():
+    key=bytes.fromhex('8899aabbccddeeff0011223344556677fedcba98765432100123456789abcdef')
+    plaintext=bytes.fromhex('1122334455667700ffeeddccbbaa9988')
+    correct_ciphertext=bytes.fromhex('7f679d90bebc24305a468d42b9d4edcd')
+    cipher=my_crypto.gost2015(key)
+    ciphertext=cipher.encryption(plaintext)
+    if bytes(ciphertext)==correct_ciphertext:
+        print('Зашифрование корректно')
+    else:
+        raise Exception('Зашифрование ошибочно')
+    decrypted=cipher.decryption(ciphertext)
+    if bytes(decrypted)==plaintext:
+        print('Расшифрование корректно')
+    else:
+        raise Exception('Расшифрование ошибочно')
+    
 if __name__=="__main__":
-    pass
+    test_kuznechik()

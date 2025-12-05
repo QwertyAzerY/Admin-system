@@ -281,7 +281,7 @@ class server_class():
         if peer_pub==None:
             slogger.error(f'Unable to send command {command_type} because peer pub not found in connected peers')
             return False
-        if command_type=='echo' or command_type=='stat' or command_type=='usrs':
+        if command_type=='echo' or command_type=='stat' or command_type=='usrs' or command_type=='updt':
             s=json.dumps({time.time():command_type})
             command_id=self.commands.new(peer_pub, server_write=s)
         else:
@@ -293,8 +293,8 @@ class server_class():
         except Exception as E:
             slogger.error(f'ERR {E} encoding command')
             return False
-        status = await self.send_encrypted(loop, sock, bytes(command_bytes))
-        if not status:
+        send_status = await self.send_encrypted(loop, sock, bytes(command_bytes))
+        if not send_status:
             self.slogger.error(f'ERR Sending {command_type}')
             return False
         return command_id
@@ -306,6 +306,12 @@ class server_class():
         payload=bytes(data_array[9:])
         slogger.info(f'payload={payload}')
         match command_type:
+            case b'updt':
+                with open('test_upd.txt', 'w') as f:
+                    strings=payload.decode()
+                    f.write(strings)
+                    f.close()
+                    
             case b'usrs':
                 if payload!=b'':
                     payload=str(payload, encoding='UTF-8')

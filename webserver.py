@@ -170,7 +170,8 @@ def users_create_submit():
 
 inner_menu_tasks = [
         {"name": "Обзор", "url": "/tasks"},
-        {"name": "Создать задание", "url": "/tasks/create"}
+        {"name": "Создать задание", "url": "/tasks/create"},
+        {"name": "Обновление", "url": "/tasks/update_all"}
     ]
 @app.route('/tasks')
 def tasks():
@@ -205,6 +206,22 @@ def tasks_create_submin():
         pass
     return redirect('/tasks')
 
+@app.route('/tasks/update_all', methods=["GET", "POST"])
+def tasks_update_all():
+    if request.method=='POST':
+        selected_options = request.form.getlist("options")   # Получаем список выбранных чекбоксов
+        for clients_str in selected_options:
+            server.add_command(bytes.fromhex(clients_str), 'updt')
+            pass
+    _, clients=server.get_status('clients_for_exec')
+    labels, values=[], [],
+    for i in range(len(clients)):
+        temp=f'{clients[i][0]} {clients[i][2]}'
+        labels.append(temp)
+        values.append(clients[i][1])
+    check_boxes=zip(values, labels)
+    return render_template("tasks/update_all.html", title="Обновление", active='Обновление', 
+                        inner_menu=inner_menu_tasks, options_data=check_boxes)
 
 inner_menu_settings = [
         {"name": "Основные настройки", "url": "/settings"},
@@ -215,6 +232,7 @@ inner_menu_settings = [
 @app.route('/settings',  methods=["GET", "POST"])
 def settings():
     tpm_support=server.conf.check_tpm()
+    TPMactive=False
     if tpm_support:
         TPMactive=server.conf.tpm_active
     try:
@@ -339,7 +357,7 @@ def arm_remove():
 
 @app.route('/download_client')
 def dowload_client():
-    return send_file('./dist/client.exe')
+    return send_file('./dist/client')
 class web():
     def __init__(self, host:str, port:int):
         self.host=host
