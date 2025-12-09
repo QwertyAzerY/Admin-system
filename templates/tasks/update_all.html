@@ -4,11 +4,8 @@
 <h1>{{ title }}</h1>
 
 <form method="post" action="/tasks/update_all" style="max-width: 1000px; margin: 20px;">
-    <label for="textInput">Bash команда</label><br>
-    <input type="text" id="textInput" name="textInput" style="width: 100%; padding: 6px; margin-bottom: 10px;"><br>
-
     <label>Клиенты</label><br>
-    <div style="max-height: 900px; overflow-y: auto; border: 1px solid #ccc; padding: 5px; margin-bottom: 10px;">
+    <div id="clients" style="max-height: 900px; overflow-y: auto; border: 1px solid #ccc; padding: 5px; margin-bottom: 10px;">
         {% for value, label in options_data %}
         <label style="display: block; margin-bottom: 5px;">
             <input type="checkbox" name="options" value="{{ value }}" style="width: 16px; height: 16px; accent-color: black;">
@@ -17,10 +14,56 @@
         {% endfor %}
     </div>
 
-    <button type="submit" style="padding: 8px 16px;">Подтвердить</button>
+    <button type="submit" style="padding: 8px 16px;">Обновить</button>
 </form>
 
+<script>
+    async function loadList() {
+    try {
+        const response = await fetch("/tasks/get_clients_updates");  // <-- твой URL
+        const data = await response.json();          // ожидаем массив
+        
+        const div_list = document.getElementById("clients");
+        div_list.innerHTML = "";                         // очистить перед выводом
+        
+        console.info(data)
+        data.forEach(([value, label]) => {
+                    // Создаём элементы как будто через Jinja-шаблон
+                    const el = document.createElement("label");
+                    el.style.display = "block";
+                    el.style.marginBottom = "5px";
 
+                    const checkbox = document.createElement("input");
+                    checkbox.type = "checkbox";
+                    checkbox.name = "options";
+                    checkbox.value = value;
+                    checkbox.style.width = "16px";
+                    checkbox.style.height = "16px";
+                    checkbox.style.accentColor = "black";
+
+                    el.appendChild(checkbox);
+                    el.append(" " + label);
+                    div_list.appendChild(el);
+                });
+
+    } catch (error) {
+        console.error("Ошибка при загрузке:", error);
+    }
+}
+// Обновить при загрузке страницы
+window.addEventListener("DOMContentLoaded", () => {
+    loadList();
+});
+
+
+// Периодическое обновление, пока вкладка активна
+setInterval(() => {
+    if (!document.hidden) {
+        loadList();
+    }
+}, 5000); // каждые 5 секунд (можешь изменить)
+
+</script>
 
 
 {% endblock %}

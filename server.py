@@ -11,6 +11,7 @@ from my_yescrypt import hash_password
 import my_crypto
 import time
 import json
+import re
 
 
 
@@ -29,7 +30,159 @@ class server_class():
         self.USERS=users_cache(self.DB)
         #self.web=web(self.conf.settings['SERVER_IP'], self.conf.settings['SERVER_PORT']-1)
         
+    def _process_update_output(self, result_dict: dict):
+        search_dict={
+                        'Выполнено!':'Выполнено.',
+                        'Отсутствуют действия для выполнения.':'Действия не требуются.',
+                    }
+        keywords={
+            'upd':'Обновлен:',
+            'dwn':'Установлен:',
+            'start_with':'  '
+        }
+        result=''
+        upd_count=0
+        dwn_count=0
+        for key in result_dict.keys():
+            temp_list=result_dict[key]
+            for tmp_str in temp_list:
+                if tmp_str.find(keywords['upd'])!=-1 or tmp_str.find(keywords['dwn'])!=-1:
+                    lines=tmp_str.split('\n')
+                    upd_flag=False
+                    dwn_flag=False
+                    for i in range(len(lines)):
+                        if lines[i].find(keywords['upd'])!=-1 and not upd_flag:
+                            upd_flag=True
+                            continue
+                        if upd_flag:
+                            if lines[i].find(keywords['start_with'])!=-1:
+                                upd_count+=1
+                                continue
+                            else:
+                                upd_flag=False
+                        if lines[i].find(keywords['dwn'])!=-1 and not dwn_flag:
+                            dwn_flag=True
+                            continue
+                        if dwn_flag:
+                            if lines[i].find(keywords['start_with'])!=-1:
+                                dwn_count+=1
+                                continue
+                            else:
+                                dwn_flag=False
+                for s_key in search_dict.keys():
+                    if tmp_str.find(s_key)!=-1:
+                        result+=search_dict[s_key]
+        if upd_count>0:
+            result+=f"Обновлено {upd_count} "
+        if dwn_count>0:
+            result+=f"Установлено {dwn_count}"
+        
+        if result=='':
+            key=list(result_dict.keys())[0]
+            text=result_dict[key][0]
+            text_lower = text.lower()
 
+            # ----------- Проверка на ошибки / провал -----------
+            if any(err in text_lower for err in ["error", "failed", "ошибка"]):
+                status = "Неуспешно"
+            else:
+                status = "Успешно"
+
+            updated = 0
+            installed = 0
+
+            # ----------- APT (Ubuntu/Debian) -----------
+            # Примеры:
+            #   "N upgraded, M newly installed"
+            apt_pattern = re.search(r"(\d+)\s+upgraded", text_lower)
+            if apt_pattern:
+                updated = int(apt_pattern.group(1))
+
+            apt_inst_pattern = re.search(r"(\d+)\s+newly installed", text_lower)
+            if apt_inst_pattern:
+                installed = int(apt_inst_pattern.group(1))
+
+            # ----------- YUM (RHEL/CentOS 7) -----------
+            # Пример:
+            #   "Updated: N packages"
+            yum_up = re.search(r"updated:\s*(\d+)", text_lower)
+            if yum_up:
+                updated = int(yum_up.group(1))
+
+            # Пример:
+            #   "Installed: M packages"
+            yum_inst = re.search(r"installed:\s*(\d+)", text_lower)
+            if yum_inst:
+                installed = int(yum_inst.group(1))
+
+            # ----------- Pacman (Arch) -----------
+            # Пример:
+            #   "upgrading package1 package2 ..."
+            pacman_up = re.findall(r"upgrading\s+([^\n]+)", text_lower)
+            if pacman_up:
+                updated = len(pacman_up[0].split())
+
+            # Пример:
+            #   "installing package1 package2 ..."
+            pacman_inst = re.findall(r"installing\s+([^\n]+)", text_lower)
+            if pacman_inst:
+                installed = len(pacman_inst[0].split())
+
+            # ----------- Zypper (openSUSE) -----------
+            zypper_up = re.search(r"packages? to upgrade:\s*(\d+)", text_lower)
+            if zypper_up:
+                updated = int(zypper_up.group(1))
+
+            zypper_inst = re.search(r"packages? to install:\s*(\d+)", text_lower)
+            if zypper_inst:
+                installed = int(zypper_inst.group(1))
+
+            # ----------- Alpine APK -----------
+            apk_up = re.search(r"upgraded\s+(\d+)", text_lower)
+            if apk_up:
+                updated = int(apk_up.group(1))
+
+            apk_inst = re.search(r"installed\s+(\d+)", text_lower)
+            if apk_inst:
+                installed = int(apk_inst.group(1))
+
+            # ----------- XBPS (Void Linux) -----------
+            # Пример:
+            #    "N package(s) updated"
+            xbps_up = re.search(r"(\d+)\s+package\(s\)\s+updated", text_lower)
+            if xbps_up:
+                updated = int(xbps_up.group(1))
+
+            xbps_inst = re.search(r"(\d+)\s+package\(s\)\s+installed", text_lower)
+            if xbps_inst:
+                installed = int(xbps_inst.group(1))
+            
+            result=f'{status} Обновлено{updated} Установлено{installed}'
+
+        return result
+
+    def _human_time_diff(self, seconds: float) -> str:
+        seconds=int(seconds)
+        if seconds < 60:
+            return "0мин"
+        minutes = seconds // 60
+        hours = minutes // 60
+        days = hours // 24
+        weeks = days // 7
+        months = days // 30
+        years = days // 365
+        if years > 0:
+            return f"{years}г"
+        if months > 0:
+            return f"{months}мес"
+        if weeks > 0:
+            return f"{weeks}нед"
+        if days > 0:
+            return f"{days}д"
+        if hours > 0:
+            return f"{hours}ч"
+        return f"{minutes}мин"
+    
     def create_user_task(self, username, password, hosts):
         user_add_command="sudo useradd -N -m -p '{1}' {0}"
         cmd_ids=[]
@@ -83,6 +236,47 @@ class server_class():
                     else:
                         temp.append('Not connected')
                     ret.append(temp)
+            elif category=='clients_for_update':
+                ret=[]
+                h=['Alias', 'Client Pub', 'Remote addr', 'Update_status']
+                for client_pub in self.clients.dict.keys():
+                    temp=[]
+                    temp.append(f'{self.clients.dict[client_pub]["alias"]}')
+                    temp.append(f'{client_pub.hex()}')
+                    for addr in self.sock_client_binding.keys():
+                        if self.sock_client_binding[addr]==client_pub:
+                            temp.append(f'{addr}')
+                            break
+                    else:
+                        temp.append('Not connected')
+                    result=self.commands.search_by_command_type('updt', client_pub)
+                    if result==None or result==[]:
+                        temp.append('Данных об обновлении нет')
+                    else:
+                        len_result=len(result)
+                        ind=0
+                        row=result[ind]
+                        server_reads=row[-1]
+                        flag=True
+                        while server_reads=="":
+                            if ind<len_result-1:
+                                ind+=1
+                            else:
+                                flag=False
+                                break
+                            row=result[ind]
+                            server_reads=row[-1]
+                        if not flag:
+                            temp.append('Данных об обновлении нет')
+                        else:
+                            reads_dict=json.loads(server_reads)
+                            s=reads_dict[list(reads_dict.keys())[0]][0]
+                            time_updated=float(list(reads_dict.keys())[0])
+                            time_elapsed=time.time()-time_updated
+                            temp.append(f'{self._human_time_diff(time_elapsed)} назад {s}')
+
+                    ret.append(temp)
+
             elif category=='users':#returns a tuple (headers, table)
                 ret=[]
                 h=['User', 'PC Name']
@@ -307,23 +501,11 @@ class server_class():
         slogger.info(f'payload={payload}')
         match command_type:
             case b'updt':
-                with open('test_upd.txt', 'w') as f:
-                    strings=payload.decode()
-                    data=json.loads(strings)
-                    search_dict={
-                        'Выполнено!':'Выполнено.',
-                        'Отсутствуют действия для выполнения.':'Действия не требуются.',
-                    }
-                    result=''
-                    for key in data.keys():
-                        temp_list=data[key]
-                        for tmp_str in temp_list:
-                            for s_key in search_dict.keys():
-                                if tmp_str.find(s_key)!=-1:
-                                    result+=search_dict[s_key]
-                    json.dump(data, f, ensure_ascii=False)
-                    f.close()
-                print(f'Результат обновления {result}')
+                result_dict=payload.decode()
+                result_dict=json.loads(result_dict)
+                result=self._process_update_output(result_dict)
+                key=list(result_dict.keys())[0]
+                print(f'Результат обновления: {result}')
                 self.commands.append(peer_pub, command_id, server_read=json.dumps({key:[result]}))
                     
             case b'usrs':

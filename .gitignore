@@ -10,3 +10,4 @@ server.exe.spec
 count_lines.py
 tpm.json
 test_upd.txt
+*conf.json

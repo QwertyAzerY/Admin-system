@@ -132,6 +132,10 @@ class ByteDictDB:
         self.conn.execute("DELETE FROM commands WHERE main_key = ?", (main_key,))
         self.conn.commit()
 
+    def execute(self, *args):
+        cur = self.read_only.execute(*args)
+        return cur.fetchall()
+    
     def close(self):
         self.conn.close()
 
@@ -139,11 +143,13 @@ class commands:
     def __init__(self, DB : ByteDictDB):   
         self.DB=DB
 
-    def read_many(self, n=50):
-
+    def read_many(self):
         temp=self.DB.read_all()
-
         return temp
+    
+    def search_by_command_type(self, cmd_type:str, peer_pub:bytes):
+        search_request="SELECT * FROM commands WHERE peer_pub = ? AND serv_write LIKE ? ORDER BY command_id DESC"
+        return self.DB.execute(search_request, (peer_pub, f'%"{cmd_type}"%', ))
 
     def read(self, peer_pub:bytes, command_id=b'')->list:
         """ returs a [of [id, writes, reads]] """
@@ -226,20 +232,10 @@ if __name__=='__main__':
     import json
     DB=ByteDictDB('data.sqlite')
     test=commands(DB)
-    r={
-        time():['SERVER READS THIS', 'And second']
-    }
-    w={
-        time():['SERVER WRITE THIS', 'And second']
-    }
-    peer_pub=bytes([i for i in range(64)])
-    id_byte=test.new(peer_pub=peer_pub, server_write=json.dumps(w), server_read=json.dumps(r))
-    r={
-        time():['SERVER READS THIS2', 'And second']
-    }
-    w={
-        time():['SERVER WRITE THIS2', 'And second']
-    }
-    print(test.append(peer_pub=peer_pub, command_id=id_byte, server_write=json.dumps(w), server_read=json.dumps(r)))
-    print(test.read(peer_pub))
+    search_request="SELECT * FROM commands WHERE peer_pub = ? AND serv_write LIKE ? ORDER BY command_id DESC"
+    cmd_type='updt'
+    peer_pub='b4caff596bf3db2acce147457bbea3d05897b7b0a9e19d96186d9b0d6adb5fc4310ce9443341afef54212f6560ebe0808613ea549412777c5a8956097553cac6'
+    print(test.search_by_command_type(cmd_type, bytes.fromhex(peer_pub)))
+    print(DB.execute(search_request, (bytes.fromhex(peer_pub), f'%"{cmd_type}"%', )))
+
                                 

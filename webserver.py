@@ -213,15 +213,21 @@ def tasks_update_all():
         for clients_str in selected_options:
             server.add_command(bytes.fromhex(clients_str), 'updt')
             pass
-    _, clients=server.get_status('clients_for_exec')
+    return render_template("tasks/update_all.html", title="Обновление", active='Обновление', 
+                        inner_menu=inner_menu_tasks)
+
+@app.route('/tasks/get_clients_updates')
+def get_clients_updates():
+    _, clients=server.get_status('clients_for_update')#alias peer_pub remote_addr update Status
     labels, values=[], [],
     for i in range(len(clients)):
-        temp=f'{clients[i][0]} {clients[i][2]}'
+        temp=f'{clients[i][0]} {clients[i][2]} {clients[i][3]}'
         labels.append(temp)
         values.append(clients[i][1])
-    check_boxes=zip(values, labels)
-    return render_template("tasks/update_all.html", title="Обновление", active='Обновление', 
-                        inner_menu=inner_menu_tasks, options_data=check_boxes)
+    check_boxes=[]
+    for i in range(min(len(values), len(labels))):
+        check_boxes.append([values[i],labels[i]])
+    return jsonify(check_boxes)
 
 inner_menu_settings = [
         {"name": "Основные настройки", "url": "/settings"},

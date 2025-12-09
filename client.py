@@ -9,11 +9,35 @@ import json
 from exec import exec
 from random import randint, randbytes
 from users import users
+from shutil import which
 import sys
+
 
 SERVER_IP = "192.168.88.254"  # адрес сервера
 SERVER_PORT=51235
 BUF_SIZE=1024
+
+SYS_OC=sys.platform
+
+if SYS_OC!='linux':
+    clogger.critical(f'Unsupported OS detected: {SYS_OC}.')
+
+def return_update_cmd():
+    managers = ["apt", "dnf", "yum", "pacman", "zypper", "apk", "xbps-install"]
+    package_update_commands = {
+    "apt": "sudo apt update && sudo apt upgrade -y",
+    "dnf": "sudo dnf update -y",
+    "yum": "sudo yum update -y",
+    "pacman": "sudo pacman -Syu --noconfirm",
+    "zypper": "sudo zypper refresh && sudo zypper update -y",
+    "apk": "sudo apk update && sudo apk upgrade",
+    "xbps-install": "sudo xbps-install -Suv"
+    }
+    for m in managers:
+        if which(m) is not None:
+            clogger.info(f'Update manager detected. It is {m}')
+            return package_update_commands[m]
+
 
 
 class client_class():
@@ -33,7 +57,10 @@ class client_class():
         command_name=command_array[5:9]
         match command_name:
             case b'updt':
-                update_command='sudo dnf update'
+                update_command=return_update_cmd()
+                if update_command==None:
+                    clogger.critical('Unable to detect update manager. Maybe you running unsupported OS.')
+                    return
                 self.exec.run(bytes(command_id), update_command, command_name)
                 clogger.info(f'Started exec updt')
             case b'usrs':
