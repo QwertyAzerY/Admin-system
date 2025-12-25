@@ -6,7 +6,7 @@ from my_logs import slogger
 from my_config import s_Config, c_Config, clients
 from os import urandom
 from random import randint
-from database import ByteDictDB, commands, users_cache
+from database import ByteDictDB, commands, users_cache, cmd_templates, template
 from my_yescrypt import hash_password
 import my_crypto
 import time
@@ -28,6 +28,7 @@ class server_class():
         self.DB=ByteDictDB('data.sqlite')
         self.commands=commands(self.DB)
         self.USERS=users_cache(self.DB)
+        self.TEMPLATES=cmd_templates(self.DB)
         #self.web=web(self.conf.settings['SERVER_IP'], self.conf.settings['SERVER_PORT']-1)
         
     def _process_update_output(self, result_dict: dict):
@@ -274,7 +275,6 @@ class server_class():
                             time_updated=float(list(reads_dict.keys())[0])
                             time_elapsed=time.time()-time_updated
                             temp.append(f'{self._human_time_diff(time_elapsed)} назад {s}')
-
                     ret.append(temp)
 
             elif category=='users':#returns a tuple (headers, table)

@@ -7,6 +7,13 @@
     <label for="textInput">Bash команда</label><br>
     <input type="text" id="textInput" name="textInput" style="width: 100%; padding: 6px; margin-bottom: 10px;"><br>
 
+    <div id="inputs-container" style="max-height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 5px; margin-bottom: 5px;"></div>
+
+    <label>Шаблоны команд</label><br>
+    <div id="buttons-container" style="max-height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 5px; margin-bottom: 5px;">
+
+    </div>
+
     <label>Клиенты</label><br>
     <div style="max-height: 900px; overflow-y: auto; border: 1px solid #ccc; padding: 5px; margin-bottom: 10px;">
         {% for value, label in options_data %}
@@ -20,7 +27,89 @@
     <button type="submit" style="padding: 8px 16px;">Подтвердить</button>
 </form>
 
+<script>
+let currentTemplate = "";
+let dataMap = {};
 
+async function renderButtonsFromJson() {
+    const response = await fetch("/tasks/templates");  // <-- твой URL
+    dataMap = await response.json();   
 
+    // контейнер для кнопок
+    const container = document.getElementById("buttons-container");
+    container.innerHTML = "";
+
+    // перебираем ключи словаря и создаём кнопки
+    Object.keys(dataMap).forEach(key => {
+        const button = document.createElement("button");
+        button.className = "template_button";
+        button.type = "button";
+        button.addEventListener("click", () => {
+            renderInputsForKey(key, dataMap);
+        });
+        button.textContent = key;
+        container.appendChild(button);
+    });
+}
+
+async function renderInputsForKey(key, dataMap) {
+    const inputsContainer = document.getElementById("inputs-container");
+    inputsContainer.innerHTML = "";
+
+    
+    const valuesList = dataMap[key];
+    if (!Array.isArray(valuesList)) {
+        return;
+    }
+    currentTemplate = key;
+
+    console.info("Render inputs");
+
+    valuesList.forEach(valueName => {
+        console.info(valueName);
+        const wrapper = document.createElement("div");
+
+        const label = document.createElement("label");
+        label.textContent = valueName;
+        label.style.marginRight = "8px";
+
+        const input = document.createElement("input");
+        input.type = "text";
+        input.name = valueName;
+        input.addEventListener("input", updateTemplateResult);
+
+        wrapper.appendChild(label);
+        wrapper.appendChild(document.createElement("br"));
+        wrapper.appendChild(input);
+        inputsContainer.appendChild(wrapper);
+    });
+
+    updateTemplateResult();
+}
+
+function updateTemplateResult() {
+    let result = currentTemplate;
+
+    const inputs = document.querySelectorAll("#inputs-container input");
+    inputs.forEach(input => {
+        const placeholder = `{${input.name}}`;
+        result = result.replaceAll(placeholder, input.value);
+    });
+
+    document.getElementById("textInput").value = result;
+}
+
+// Обновить при загрузке страницы
+window.addEventListener("DOMContentLoaded", () => {
+    renderButtonsFromJson();
+});
+</script>
+
+<style>
+    .template_button {
+        border: none;
+        text-align: left;
+    }
+</style>
 
 {% endblock %}

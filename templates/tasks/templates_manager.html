@@ -1,0 +1,89 @@
+{% extends "content_layout.html" %}
+
+{% block inner_content %}
+<h1>{{ title }}</h1>
+
+<!-- <label for="username">Фильтр по имени</label><br>
+<input type="text" id="username" name="username" style="width:100%; padding:6px; margin-bottom:10px;"><br> -->
+
+
+
+<h3>Создать шаблон</h3>
+
+<form action="/tasks/templates/add" style="border: 1px solid #ccc; padding: 5px; margin-bottom: 10px;" method="post">
+    <label>Используйте формат "command {value}, каждый value будет динамическим"</label>
+    <textarea type="text" name="template" style="width: 95%; margin-bottom: 5px;"></textarea> <br>
+    <button type="submit">Создать шаблон</button>
+</form>
+
+<form style="height: 90%;" action="/tasks/templates/remove" method="post">
+<button type="submit">Удалить Шаблоны</button>
+<button type="button" id="RefreshButton">Обновить таблицу</button>
+<div style="max-height:85%; overflow-y:auto; border:1px solid #ccc;">
+<table id="table_data">
+    
+</table>
+</div>
+</form>
+
+<script>
+const cb_hide_no_login = document.getElementById("hide_no_login"); 
+const refr_users_btn = document.getElementById("RefreshButton");
+
+async function loadTable() {
+    const response = await fetch("/tasks/templates");  // <-- твой URL
+    const dataMap = await response.json();   
+
+    const tbody = document.getElementById("table_data");
+    tbody.innerHTML = "";
+
+    Object.keys(dataMap).forEach(key => {
+        const row = document.createElement("label");
+        const chkbox = document.createElement("input");
+        chkbox.type = "checkbox";
+        chkbox.value = key;
+        chkbox.name = "template";
+        row.appendChild(chkbox);
+        row.append(key)
+
+        tbody.appendChild(row);
+    });
+
+}
+
+refr_users_btn.addEventListener("click", () => {
+    loadTable();
+});
+
+window.addEventListener("DOMContentLoaded", () => {
+    loadTable();
+});
+
+</script>
+
+<style>
+#table_data input {
+    width: 16px; height: 16px; accent-color: black;
+}
+#table_data label {
+    display: block; margin-bottom: 5px;
+}
+table {
+    border-collapse: collapse;
+    width: 100%;
+    background-color: #fff;
+}
+
+th, td {
+    border: 1px solid #ccc;
+    padding: 8px 10px;
+    text-align: left;
+}
+
+th {
+    background-color: #f0f0f0;
+}
+
+</style>
+
+{% endblock %}

@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify, redirect, Response, 
 import threading
 from server import server_class
 import os
+from database import template
 
 app = Flask(__name__)
 
@@ -171,7 +172,8 @@ def users_create_submit():
 inner_menu_tasks = [
         {"name": "Обзор", "url": "/tasks"},
         {"name": "Создать задание", "url": "/tasks/create"},
-        {"name": "Обновление", "url": "/tasks/update_all"}
+        {"name": "Обновление", "url": "/tasks/update_all"},
+        {"name": "Шаблоны", "url": "/tasks/template_manager"}
     ]
 @app.route('/tasks')
 def tasks():
@@ -360,6 +362,35 @@ def arm_remove():
                     active='Удалить АРМ',
                     options_data=check_boxes)
 
+@app.route('/tasks/templates')
+def return_templates():
+    r={}
+    tmplts=server.TEMPLATES.read_all()
+    for row in tmplts:
+        temp=template(row[1])
+        r[row[1]]=temp.extract_parameters()
+    return jsonify(r)
+
+@app.route('/tasks/template_manager')
+def manage_templates():
+    return render_template("tasks/templates_manager.html", title="Шаблоны",
+                    inner_menu=inner_menu_tasks,
+                    active='Шаблоны')
+
+@app.route('/tasks/templates/remove', methods=["POST"])
+def remove_templates():
+    names=request.form.getlist('template')
+    for name in names:
+        server.TEMPLATES.delete(name)
+    return redirect('/tasks/template_manager')
+
+@app.route('/tasks/templates/add', methods=["POST"])
+def add_template():
+    string=request.form.get('template', '', str)
+    if string!='':
+        temp=template(string)
+        server.TEMPLATES.save(temp)
+    return redirect('/tasks/template_manager')
 
 @app.route('/download_client')
 def dowload_client():
@@ -373,6 +404,10 @@ class web():
 
     def run_server(self):
         app.run(host=self.host, port=self.port, debug=False, use_reloader=False)
+
+
+    
+
 
 def run_thread():
     app.run(host=server.conf.settings['SERVER_WEB_IP'], port=server.conf.settings['SERVER_WEB_PORT'])

@@ -1,6 +1,6 @@
 import sqlite3
 import json
-
+import re
 
 class ByteDictDB:
     def __init__(self, path: str):
@@ -22,6 +22,12 @@ class ByteDictDB:
                 password TEXT,
                 no_login INTEGER,
                 PRIMARY KEY (peer_pub, username)
+            )
+        """)
+        self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS templates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                string TEXT NOT NULL
             )
         """)
         #commands struct dict[peer_pubs][command_ids]=[strings][strings] with messages
@@ -128,9 +134,24 @@ class ByteDictDB:
         cur = self.read_only.execute("SELECT * FROM commands WHERE serv_write NOT LIKE ? AND serv_write NOT LIKE ?", (f'%echo"%', f'%"stat"%'))
         rows = cur.fetchall()
         return rows
+    
     def delete(self, main_key: bytes):
-        self.conn.execute("DELETE FROM commands WHERE main_key = ?", (main_key,))
-        self.conn.commit()
+        self.read_only.execute("DELETE FROM commands WHERE main_key = ?", (main_key,))
+        self.read_only.commit()
+
+    def add_tmpl(self, id, template):
+        if id!=-1:
+            req="REPLACE INTO templates (id, string) VALUES (?, ?)"
+            self.read_only.execute(req, (id, template,))
+        else:
+            req="INSERT INTO templates (string) VALUES (?)"
+            self.read_only.execute(req, (template,))
+        self.read_only.commit()
+
+    def dlt_template(self, s):
+        req="DELETE FROM templates WHERE string = ?"
+        self.read_only.execute(req, (s,))
+        self.read_only.commit()
 
     def execute(self, *args):
         cur = self.read_only.execute(*args)
@@ -226,16 +247,54 @@ class users_cache:
     def delete_users_old_hosts(self, hosts:list[bytes]):
         self.DB.remove_users_not_this_pubs(hosts)
 
+class template:
+    
+
+    def __init__(self, string):
+        self.s=string
+        self._replace=r"\{([^}]+)\}"
+    
+    def extract_parameters(self) -> list[str]:
+        """
+        Возвращает список имён параметров из шаблона вида {param}
+        """
+        return re.findall(self._replace, self.s)
+    
+    def fill_template(self, values: dict) -> str:
+        """
+        Подставляет значения в шаблон.
+        values: {'Host': 'localhost', 'Username': 'admin', 'Password': '1234'}
+        """
+        def replacer(match):
+            key = match.group(1)
+            if key not in values:
+                raise KeyError(f"Missing value for parameter: {key}")
+            return str(values[key])
+
+        return re.sub(self._replace, replacer, self.s)
+
+class cmd_templates:
+    def __init__(self, DB:ByteDictDB):
+        self.DB=DB
+    
+    def save(self, temp:template, id=-1):
+        self.DB.add_tmpl(id, temp.s)
+    
+    def delete(self, string:str):
+        self.DB.dlt_template(string)
+
+    def read_all(self):
+        return self.DB.execute("SELECT * FROM templates")
+
 if __name__=='__main__':
     from os import urandom
     from time import time
     import json
     DB=ByteDictDB('data.sqlite')
-    test=commands(DB)
-    search_request="SELECT * FROM commands WHERE peer_pub = ? AND serv_write LIKE ? ORDER BY command_id DESC"
-    cmd_type='updt'
-    peer_pub='b4caff596bf3db2acce147457bbea3d05897b7b0a9e19d96186d9b0d6adb5fc4310ce9443341afef54212f6560ebe0808613ea549412777c5a8956097553cac6'
-    print(test.search_by_command_type(cmd_type, bytes.fromhex(peer_pub)))
-    print(DB.execute(search_request, (bytes.fromhex(peer_pub), f'%"{cmd_type}"%', )))
+    test=template('Test {admin}')
+    templates_test=cmd_templates(DB)
+    templates_test.save(test)
+    print(test.extract_parameters())
+    print(test.fill_template({'admin':"ADMIN"}))
 
                                 
